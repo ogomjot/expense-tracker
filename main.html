@@ -1,0 +1,706 @@
+<!doctype html>
+<html lang="en" class="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>main — Expense Tracker</title>
+    <meta
+      name="description"
+      content="Track income, expenses, budgets, and monthly trends — free, no signup, your data stays in your browser."
+    />
+    <meta property="og:title" content="Expense Tracker main" />
+    <meta
+      property="og:description"
+      content="A free, no-signup personal finance main."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23162839'/%3E%3Ctext x='50' y='68' font-size='58' text-anchor='middle' fill='%237bf8a1'%3E%24%3C/text%3E%3C/svg%3E"
+    />
+
+    <!-- FIX: apply saved theme synchronously, before any CSS/paint, to
+         prevent a flash of the wrong theme (FOUC) on every reload. -->
+    <script>
+      (function () {
+        if (localStorage.getItem("theme") === "dark") {
+          document.documentElement.classList.add("dark");
+          document.documentElement.classList.remove("light");
+        }
+      })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Manrope:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="main.css" />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              background: "#f7f9fb",
+              surface: "#f7f9fb",
+              "surface-container-low": "#f2f4f6",
+              "surface-container": "#eceef0",
+              "surface-container-high": "#e6e8ea",
+              "surface-container-lowest": "#ffffff",
+              "surface-variant": "#e0e3e5",
+              "on-background": "#191c1e",
+              "on-surface": "#191c1e",
+              "on-surface-variant": "#43474c",
+              "outline-variant": "#c4c6cd",
+              outline: "#74777d",
+              primary: "#162839",
+              "primary-container": "#2c3e50",
+              "on-primary": "#ffffff",
+              "primary-fixed": "#d1e4fb",
+              secondary: "#006d37",
+              "on-secondary": "#ffffff",
+              error: "#ba1a1a",
+            },
+            borderRadius: {
+              DEFAULT: "0.25rem",
+              lg: "0.5rem",
+              xl: "0.75rem",
+              full: "9999px",
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body
+    class="bg-background dark:bg-[#101418] text-on-background dark:text-[#e0e3e5] antialiased min-h-screen"
+  >
+    <div class="bg-crystal" id="bgCrystal" aria-hidden="true">
+      <span class="bg-crystal-edge"></span>
+      <span class="bg-crystal-symbol">$</span>
+    </div>
+    <nav
+      class="bg-surface dark:bg-[#161c24] border-b border-outline-variant dark:border-[#2a323f]"
+    >
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
+          <span class="brand-badge" aria-hidden="true">
+            <span class="brand-badge-edge"></span>
+            <span class="brand-badge-symbol">$</span>
+          </span>
+          <p class="text-lg font-semibold text-primary dark:text-[#d1e4fb]">
+            Expense Tracker
+          </p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <a
+            href="index.html"
+            class="text-sm font-medium text-on-surface-variant dark:text-[#c4c6cd] hover:text-primary hover:underline hover:underline-offset-2 hover:scale-105 transition-all duration-300 relative"
+            >Landing Page</a
+          >
+
+          <div class="settings-menu">
+            <button
+              id="settings-button"
+              type="button"
+              aria-label="Open settings"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-controls="settings-menu"
+              class="settings-button group relative overflow-hidden"
+            >
+              <span class="hicon hicon-gear group-hover:rotate-180 group-hover:scale-110 transition-all duration-500">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="3.2" />
+                  <path
+                    d="M12 2.5v3M12 18.5v3M21.5 12h-3M5.5 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"
+                  />
+                </svg>
+              </span>
+              <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+            </button>
+
+            <div
+              id="settings-menu"
+              class="settings-dropdown hidden"
+              role="menu"
+            >
+              <label for="currency-select" class="settings-row">
+                <span>Display Format</span>
+                <select
+                  id="currency-select"
+                  class="text-sm border border-outline-variant dark:border-[#3a4453] rounded-lg px-2 py-1.5 bg-white dark:bg-[#1f2733] dark:text-[#e0e3e5]"
+                >
+                  <option value="USD">USD $</option>
+                  <option value="INR">INR ₹</option>
+                  <option value="EUR">EUR €</option>
+                  <option value="GBP">GBP £</option>
+                </select>
+              </label>
+              <p class="text-xs text-on-surface-variant dark:text-[#a6adb5] mt-2">Changes the number and symbol formatting only; it does not convert amounts between currencies.</p>
+
+              <button
+                id="dark-mode-toggle"
+                type="button"
+                aria-pressed="false"
+                aria-label="Toggle dark mode"
+                class="settings-toggle-row group relative overflow-hidden"
+              >
+                <span class="relative z-10 transition-colors duration-300 group-hover:text-primary dark:group-hover:text-primary-fixed">Dark mode</span>
+                <span class="settings-mode-indicator relative z-10 transition-transform duration-300 group-hover:scale-105">Off</span>
+                <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <main class="dashboard-shell relative">
+      <section class="summary-row">
+        <div class="summary-card summary-card-income">
+          <p class="text-sm text-on-surface-variant dark:text-[#a6adb5] mb-2">
+            Total Income
+          </p>
+          <p id="total-income" class="text-3xl font-bold text-secondary">
+            $0.00
+          </p>
+        </div>
+        <div class="summary-card summary-card-expense">
+          <p class="text-sm text-on-surface-variant dark:text-[#a6adb5] mb-2">
+            Total Expenses
+          </p>
+          <p id="total-expenses" class="text-3xl font-bold text-error">$0.00</p>
+        </div>
+        <div class="summary-card summary-card-balance">
+          <p class="text-sm text-on-surface-variant dark:text-[#a6adb5] mb-2">
+            Balance
+          </p>
+          <p
+            id="balance"
+            class="text-3xl font-bold text-primary dark:text-[#d1e4fb]"
+          >
+            $0.00
+          </p>
+        </div>
+      </section>
+
+      <section id="expense-form-section" class="brick dashboard-hero-card">
+        <div class="brick-header">
+          <h2 id="expense-form-heading">Add Transaction</h2>
+          <button
+            class="collapse-btn group relative overflow-hidden"
+            type="button"
+            aria-expanded="true"
+            aria-controls="expense-form-content"
+          >
+            <span class="relative z-10 transition-transform duration-300 group-hover:rotate-180 group-hover:scale-110">−</span>
+            <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+          </button>
+        </div>
+        <div class="brick-content" id="expense-form-content">
+          <div id="empty-state-hint" class="empty-state-hint hidden">
+            Add your first transaction to get started
+          </div>
+          <form
+            id="expense-form"
+            class="space-y-4"
+            aria-labelledby="expense-form-heading"
+          >
+            <div class="compact-form-grid">
+              <div class="field-group">
+                <label
+                  for="expense-type"
+                  class="block text-sm font-semibold mb-2"
+                  >Type</label
+                >
+                <select id="expense-type" required>
+                  <option value="">Choose Type</option>
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                </select>
+              </div>
+              <div class="field-group">
+                <label
+                  for="expense-category"
+                  class="block text-sm font-semibold mb-2"
+                  >Category</label
+                >
+                <select id="expense-category" required>
+                  <option value="">Choose Category</option>
+                </select>
+              </div>
+              <div class="field-group wide-field">
+                <label
+                  for="expense-name"
+                  class="block text-sm font-semibold mb-2"
+                  >Description</label
+                >
+                <input
+                  id="expense-name"
+                  type="text"
+                  placeholder="Description"
+                  required
+                />
+              </div>
+              <div class="field-group">
+                <label
+                  for="expense-amount"
+                  class="block text-sm font-semibold mb-2"
+                  >Amount</label
+                >
+                <input
+                  id="expense-amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              <div class="field-group">
+                <label
+                  for="expense-date"
+                  class="block text-sm font-semibold mb-2"
+                  >Date</label
+                >
+                <input id="expense-date" type="date" required />
+              </div>
+            </div>
+
+            <div class="flex gap-3">
+              <button
+                id="expense-submit-btn"
+                type="submit"
+                class="flex-1 bg-primary-container text-on-primary px-4 py-3 rounded-xl font-medium hover:opacity-90 hover:scale-105 hover:shadow-xl transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-white/20 before:translate-x-[-100%] before:transition-transform before:duration-500 group-hover:before:translate-x-[100%]"
+              >
+                <span class="relative z-10">Add Transaction</span>
+              </button>
+              <button
+                id="cancel-edit-btn"
+                type="button"
+                class="hidden bg-surface-container dark:bg-[#232c39] text-on-surface dark:text-[#e0e3e5] px-4 py-3 rounded-xl font-medium hover:scale-105 hover:shadow-lg hover:bg-surface-container-high dark:hover:bg-[#2a3542] transition-all duration-300"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <div class="tier-1-stack">
+        <div class="chart-shell">
+          <div class="chart-toggle-row group">
+            <button
+              class="chart-toggle-btn is-active relative overflow-hidden"
+              data-chart="expense"
+              type="button"
+            >
+              <span class="relative z-10">Expenses</span>
+              <span class="absolute inset-0 bg-primary/20 scale-x-0 origin-left transition-transform duration-300 group-hover:scale-x-100"></span>
+            </button>
+            <button class="chart-toggle-btn relative overflow-hidden" data-chart="income" type="button">
+              <span class="relative z-10">Income</span>
+              <span class="absolute inset-0 bg-secondary/20 scale-x-0 origin-left transition-transform duration-300 group-hover:scale-x-100"></span>
+            </button>
+          </div>
+
+          <section
+            id="expense-chart-section"
+            class="brick chart-panel is-active"
+          >
+            <div class="brick-header">
+              <h2 id="expense-chart-heading">Expenses by Category</h2>
+              <button
+                class="collapse-btn group relative overflow-hidden"
+                type="button"
+                aria-expanded="true"
+                aria-controls="expense-chart-content"
+              >
+                <span class="relative z-10 transition-transform duration-300 group-hover:rotate-180 group-hover:scale-110">−</span>
+                <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+              </button>
+            </div>
+            <div class="brick-content" id="expense-chart-content">
+              <div class="chart-placeholder-wrapper">
+                <canvas
+                  id="expenseChart"
+                  role="img"
+                  aria-label="Expenses by category chart"
+                ></canvas>
+                <svg
+                  id="expenseChartIcon"
+                  class="chart-icon hidden"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M11,2v20c-5.07,-0.5 -9,-4.79 -9,-10s3.93,-9.5 9,-10ZM13,2c5.05,0.5 9,4.79 9,10s-3.95,9.5 -9,10v-20Z"
+                  />
+                </svg>
+              </div>
+              <div id="expense-chart-legend" class="mt-4"></div>
+            </div>
+          </section>
+
+          <section
+            id="income-chart-section"
+            class="brick chart-panel is-hidden"
+          >
+            <div class="brick-header">
+              <h2 id="income-chart-heading">Income by Category</h2>
+              <button
+                class="collapse-btn group relative overflow-hidden"
+                type="button"
+                aria-expanded="true"
+                aria-controls="income-chart-content"
+              >
+                <span class="relative z-10 transition-transform duration-300 group-hover:rotate-180 group-hover:scale-110">−</span>
+                <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+              </button>
+            </div>
+            <div class="brick-content" id="income-chart-content">
+              <div class="chart-placeholder-wrapper">
+                <canvas
+                  id="incomeChart"
+                  role="img"
+                  aria-label="Income by category chart"
+                ></canvas>
+                <svg
+                  id="incomeChartIcon"
+                  class="chart-icon hidden"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M11,2v20c-5.07,-0.5 -9,-4.79 -9,-10s3.93,-9.5 9,-10ZM13,2c5.05,0.5 9,4.79 9,10s-3.95,9.5 -9,10v-20Z"
+                  />
+                </svg>
+              </div>
+              <div id="income-chart-legend" class="mt-4"></div>
+            </div>
+          </section>
+        </div>
+
+        <section id="trends-section" class="brick">
+          <div class="brick-header">
+            <h2 id="trends-heading">Monthly Trends</h2>
+            <button
+              class="collapse-btn group relative overflow-hidden"
+              type="button"
+              aria-expanded="true"
+              aria-controls="trends-content"
+            >
+              <span class="relative z-10 transition-transform duration-300 group-hover:rotate-180 group-hover:scale-110">−</span>
+              <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+            </button>
+          </div>
+          <div class="brick-content" id="trends-content">
+            <div class="chart-placeholder-wrapper">
+              <canvas
+                id="trendsChart"
+                role="img"
+                aria-label="Monthly income and expense trend chart"
+              ></canvas>
+              <svg
+                id="trendsChartIcon"
+                class="chart-icon hidden"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 18h18M5 15l4-5 4 3 6-9" />
+              </svg>
+            </div>
+          </div>
+        </section>
+
+        <section id="transactions-section" class="brick">
+          <div class="brick-header">
+            <h2 id="transactions-heading">Recent Transactions</h2>
+            <button
+              class="collapse-btn group relative overflow-hidden"
+              type="button"
+              aria-expanded="true"
+              aria-controls="transactions-content"
+            >
+              <span class="relative z-10 transition-transform duration-300 group-hover:rotate-180 group-hover:scale-110">−</span>
+              <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+            </button>
+          </div>
+          <div class="brick-content" id="transactions-content">
+            <div id="transactions-list" class="transactions-list"></div>
+          </div>
+        </section>
+      </div>
+
+      <div class="advanced-toggle-wrap">
+        <button
+          id="advanced-toggle"
+          type="button"
+          class="advanced-toggle group relative overflow-hidden"
+          aria-expanded="false"
+        >
+          <span class="relative z-10 transition-transform duration-300 group-hover:scale-105">More Tools</span>
+          <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+        </button>
+      </div>
+
+      <div id="advanced-tools" class="advanced-tools hidden">
+        <section id="category-section" class="brick">
+          <div class="brick-header">
+            <h2 id="category-heading">Manage Categories</h2>
+            <button
+              class="collapse-btn group relative overflow-hidden"
+              type="button"
+              aria-expanded="true"
+              aria-controls="category-content"
+            >
+              <span class="relative z-10 transition-transform duration-300 group-hover:rotate-180 group-hover:scale-110">−</span>
+              <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+            </button>
+          </div>
+          <div class="brick-content" id="category-content">
+            <div class="space-y-4">
+              <div class="flex flex-col sm:flex-row gap-3">
+                <label for="new-category-input" class="sr-only"
+                  >New category name</label
+                >
+                <input
+                  id="new-category-input"
+                  type="text"
+                  placeholder="New category"
+                  maxlength="20"
+                  class="flex-1"
+                />
+                <label for="category-type-select" class="sr-only"
+                  >Category type</label
+                >
+                <select id="category-type-select">
+                  <option value="">Type</option>
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                </select>
+                <button
+                  id="add-category-btn"
+                  type="button"
+                  class="bg-secondary text-on-secondary px-4 py-2 rounded-xl font-medium hover:scale-105 hover:shadow-xl hover:opacity-90 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-white/20 before:translate-x-[-100%] before:transition-transform before:duration-500 group-hover:before:translate-x-[100%]"
+                >
+                  <span class="relative z-10">Add</span>
+                </button>
+              </div>
+              <div id="categories-display" class="categories-display"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="budget-section" class="brick">
+          <div class="brick-header">
+            <h2 id="budget-heading">Budget Tracker</h2>
+            <button
+              class="collapse-btn group relative overflow-hidden"
+              type="button"
+              aria-expanded="true"
+              aria-controls="budget-content"
+            >
+              <span class="relative z-10 transition-transform duration-300 group-hover:rotate-180 group-hover:scale-110">−</span>
+              <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+            </button>
+          </div>
+          <div class="brick-content" id="budget-content">
+            <div class="space-y-4">
+              <div class="flex flex-col sm:flex-row gap-3">
+                <label for="budget-category" class="sr-only"
+                  >Budget category</label
+                >
+                <select id="budget-category" class="flex-1">
+                  <option value="">Select category</option>
+                </select>
+                <label for="budget-amount" class="sr-only">Budget amount</label>
+                <input
+                  id="budget-amount"
+                  type="number"
+                  placeholder="Budget amount"
+                  step="0.01"
+                  min="0.01"
+                  class="flex-1"
+                />
+                <button
+                  id="set-budget-btn"
+                  type="button"
+                  class="bg-secondary text-on-secondary px-4 py-2 rounded-xl font-medium hover:scale-105 hover:shadow-xl hover:opacity-90 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-white/20 before:translate-x-[-100%] before:transition-transform before:duration-500 group-hover:before:translate-x-[100%]"
+                >
+                  <span class="relative z-10">Set</span>
+                </button>
+              </div>
+              <div id="budgets-display" class="budgets-display"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="filter-section" class="brick">
+          <div class="brick-header">
+            <h2 id="filter-heading">Filter Transactions</h2>
+            <button
+              class="collapse-btn group relative overflow-hidden"
+              type="button"
+              aria-expanded="true"
+              aria-controls="filter-content"
+            >
+              <span class="relative z-10 transition-transform duration-300 group-hover:rotate-180 group-hover:scale-110">−</span>
+              <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+            </button>
+          </div>
+          <div class="brick-content" id="filter-content">
+            <div class="space-y-4">
+              <div>
+                <label
+                  for="filter-type"
+                  class="block text-sm font-semibold mb-2"
+                  >Type</label
+                >
+                <select id="filter-type">
+                  <option value="">All Types</option>
+                  <option value="expense">Expense</option>
+                  <option value="income">Income</option>
+                </select>
+              </div>
+
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  class="quick-filter-btn group relative overflow-hidden"
+                  data-range="this-month"
+                >
+                  <span class="relative z-10 transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5">This Month</span>
+                  <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+                </button>
+                <button
+                  type="button"
+                  class="quick-filter-btn group relative overflow-hidden"
+                  data-range="last-month"
+                >
+                  <span class="relative z-10 transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5">Last Month</span>
+                  <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+                </button>
+                <button
+                  type="button"
+                  class="quick-filter-btn group relative overflow-hidden"
+                  data-range="this-year"
+                >
+                  <span class="relative z-10 transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5">This Year</span>
+                  <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+                </button>
+                <button type="button" class="quick-filter-btn group relative overflow-hidden" data-range="all">
+                  <span class="relative z-10 transition-transform duration-300 group-hover:scale-105 group-hover:-translate-y-0.5">All Time</span>
+                  <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label
+                    for="filter-date-from"
+                    class="block text-sm font-semibold mb-2"
+                    >From</label
+                  >
+                  <input id="filter-date-from" type="date" />
+                </div>
+                <div>
+                  <label
+                    for="filter-date-to"
+                    class="block text-sm font-semibold mb-2"
+                    >To</label
+                  >
+                  <input id="filter-date-to" type="date" />
+                </div>
+              </div>
+
+              <div class="flex gap-3 flex-wrap">
+                <button
+                  id="reset-filter"
+                  type="button"
+                  class="flex-1 min-w-[100px] bg-surface-container dark:bg-[#232c39] text-on-surface dark:text-[#e0e3e5] px-4 py-2 rounded-xl font-medium hover:scale-105 hover:shadow-lg hover:bg-surface-container-high dark:hover:bg-[#2a3542] transition-all duration-300 relative overflow-hidden group"
+                >
+                  <span class="relative z-10">Reset</span>
+                  <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+                </button>
+                <button
+                  id="export-csv-btn"
+                  type="button"
+                  class="flex-1 min-w-[100px] bg-surface-container dark:bg-[#232c39] text-on-surface dark:text-[#e0e3e5] px-4 py-2 rounded-xl font-medium hover:scale-105 hover:shadow-lg hover:bg-surface-container-high dark:hover:bg-[#2a3542] transition-all duration-300 relative overflow-hidden group"
+                >
+                  <span class="relative z-10">Export CSV</span>
+                  <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+                </button>
+              </div>
+
+              <div
+                class="flex gap-3 flex-wrap border-t border-outline-variant dark:border-[#333c48] pt-4"
+              >
+                <button
+                  id="export-json-btn"
+                  type="button"
+                  class="flex-1 min-w-[100px] bg-surface-container dark:bg-[#232c39] text-on-surface dark:text-[#e0e3e5] px-4 py-2 rounded-xl font-medium hover:scale-105 hover:shadow-lg hover:bg-surface-container-high dark:hover:bg-[#2a3542] transition-all duration-300 relative overflow-hidden group"
+                >
+                  <span class="relative z-10">Backup (JSON)</span>
+                  <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+                </button>
+                <label
+                  class="flex-1 min-w-[100px] text-center bg-surface-container dark:bg-[#232c39] text-on-surface dark:text-[#e0e3e5] px-4 py-2 rounded-xl font-medium cursor-pointer hover:scale-105 hover:shadow-lg hover:bg-surface-container-high dark:hover:bg-[#2a3542] transition-all duration-300 relative overflow-hidden group"
+                >
+                  <span class="relative z-10">Restore</span>
+                  <span class="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"></span>
+                  <input
+                    id="import-json-input"
+                    type="file"
+                    accept="application/json"
+                    class="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="mt-10 pb-8 text-center text-sm text-on-surface-variant dark:text-[#a6adb5]">
+        <p>
+          Built by
+          <a
+            href="https://github.com/ogomjot"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-semibold text-primary dark:text-[#d1e4fb] hover:underline hover:underline-offset-2 transition-colors"
+            >Agamjot Singh</a
+          >
+        </p>
+      </footer>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4"></script>
+    <script src="app.js"></script>
+    <script src="scroll-fx.js"></script>
+  </body>
+</html>

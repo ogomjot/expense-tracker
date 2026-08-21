@@ -1,0 +1,610 @@
+<!doctype html>
+<html class="light" lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Expense Tracker — Free Personal Finance main</title>
+    <meta name="description" content="Track income, expenses, budgets, and monthly trends with a free, no-signup expense tracker. Your data stays in your browser." />
+    <meta property="og:title" content="Expense Tracker — Free Personal Finance main" />
+    <meta property="og:description" content="Track every dollar with a simple, no-signup main. 100% free forever." />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23162839'/%3E%3Ctext x='50' y='68' font-size='58' text-anchor='middle' fill='%237bf8a1'%3E%24%3C/text%3E%3C/svg%3E" />
+    <script>
+      (function () {
+        if (localStorage.getItem("theme") === "dark") {
+          document.documentElement.classList.add("dark");
+          document.documentElement.classList.remove("light");
+        }
+      })();
+    </script>
+    <script>
+      (function () {
+        function initToggle() {
+          const toggle = document.getElementById("dark-mode-toggle-landing");
+          if (!toggle) return;
+          const sunIcon = toggle.querySelector(".sun-icon");
+          const moonIcon = toggle.querySelector(".moon-icon");
+          function updateIcon(isDark) {
+            toggle.setAttribute("aria-pressed", isDark);
+            if (sunIcon) sunIcon.classList.toggle("hidden", isDark);
+            if (moonIcon) moonIcon.classList.toggle("hidden", !isDark);
+          }
+          const isDark = localStorage.getItem("theme") === "dark";
+          updateIcon(isDark);
+          toggle.addEventListener("click", () => {
+            const newIsDark = !document.documentElement.classList.contains("dark");
+            document.documentElement.classList.toggle("dark", newIsDark);
+            document.documentElement.classList.toggle("light", !newIsDark);
+            localStorage.setItem("theme", newIsDark ? "dark" : "light");
+            updateIcon(newIsDark);
+          });
+        }
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", initToggle);
+        } else {
+          initToggle();
+        }
+      })();
+    </script>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=Manrope:wght@600;700&amp;display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="main.css" />
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "secondary-container": "#7bf8a1",
+              "on-primary-fixed-variant": "#36485b",
+              "on-error": "#ffffff",
+              tertiary: "#570001",
+              background: "#f7f9fb",
+              "on-primary-container": "#96a9be",
+              "surface-variant": "#e0e3e5",
+              "on-tertiary-fixed": "#410000",
+              "on-tertiary": "#ffffff",
+              "on-secondary": "#ffffff",
+              "surface-tint": "#4e6073",
+              "on-primary": "#ffffff",
+              "secondary-fixed-dim": "#61de8a",
+              "secondary-fixed": "#7efba4",
+              "error-container": "#ffdad6",
+              "tertiary-fixed-dim": "#ffb4a9",
+              surface: "#f7f9fb",
+              "surface-container-high": "#e6e8ea",
+              "on-surface": "#191c1e",
+              "outline-variant": "#c4c6cd",
+              "surface-container-low": "#f2f4f6",
+              "primary-fixed": "#d1e4fb",
+              "primary-container": "#2c3e50",
+              "on-secondary-fixed": "#00210c",
+              "surface-container": "#eceef0",
+              primary: "#162839",
+              "on-tertiary-fixed-variant": "#910807",
+              "inverse-surface": "#2d3133",
+              "on-secondary-fixed-variant": "#005228",
+              "inverse-on-surface": "#eff1f3",
+              "surface-container-highest": "#e0e3e5",
+              "surface-container-lowest": "#ffffff",
+              "on-background": "#191c1e",
+              "on-secondary-container": "#007239",
+              outline: "#74777d",
+              "on-tertiary-container": "#ff8372",
+              "tertiary-fixed": "#ffdad5",
+              "tertiary-container": "#800002",
+              "inverse-primary": "#b5c8df",
+              "surface-bright": "#f7f9fb",
+              "on-surface-variant": "#43474c",
+              "on-error-container": "#93000a",
+              secondary: "#006d37",
+              "on-primary-fixed": "#091d2e",
+              "surface-dim": "#d8dadc",
+              error: "#ba1a1a",
+              "primary-fixed-dim": "#b5c8df",
+            },
+            borderRadius: { DEFAULT: "0.25rem", lg: "0.5rem", xl: "0.75rem", full: "9999px" },
+            spacing: {
+              "stack-md": "16px",
+              "stack-lg": "32px",
+              "margin-desktop": "40px",
+              "margin-mobile": "16px",
+              gutter: "24px",
+              "section-padding": "80px",
+              "stack-sm": "8px",
+              "container-max": "1200px",
+            },
+            fontFamily: {
+              "body-md": ["Hanken Grotesk"],
+              "label-md": ["Hanken Grotesk"],
+              "headline-sm": ["Manrope"],
+              "display-lg-mobile": ["Manrope"],
+              "headline-md": ["Manrope"],
+              "label-sm": ["Hanken Grotesk"],
+              "body-lg": ["Hanken Grotesk"],
+              "display-lg": ["Manrope"],
+            },
+            fontSize: {
+              "body-md": ["16px", { lineHeight: "24px", fontWeight: "400" }],
+              "label-md": ["14px", { lineHeight: "20px", letterSpacing: "0.05em", fontWeight: "600" }],
+              "headline-sm": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+              "display-lg-mobile": ["32px", { lineHeight: "40px", letterSpacing: "-0.01em", fontWeight: "700" }],
+              "headline-md": ["32px", { lineHeight: "40px", letterSpacing: "-0.01em", fontWeight: "600" }],
+              "label-sm": ["12px", { lineHeight: "16px", fontWeight: "500" }],
+              "body-lg": ["18px", { lineHeight: "28px", fontWeight: "400" }],
+              "display-lg": ["48px", { lineHeight: "56px", letterSpacing: "-0.02em", fontWeight: "700" }],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background-color: theme("colors.background");
+        color: theme("colors.on-background");
+      }
+
+      body,
+      nav,
+      .feature-card,
+      .mockup-tile,
+      .trust-item,
+      .landing-toggle-track,
+      .landing-toggle-thumb {
+        transition-property: background-color, color, border-color, opacity, transform, box-shadow;
+        transition-duration: 300ms;
+        transition-timing-function: ease;
+      }
+
+      /* Landing page dark mode toggle switch */
+      .landing-toggle {
+        position: relative;
+        width: 56px;
+        height: 28px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        padding: 0;
+        border-radius: 14px;
+      }
+
+      .landing-toggle-track {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 14px;
+        background: #eef2f5;
+        border: 2px solid #c4c6cd;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .landing-toggle-track::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #162839, #2c3e50);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        border-radius: 12px;
+      }
+
+      .landing-toggle:hover .landing-toggle-track {
+        border-color: #162839;
+        box-shadow: 0 0 0 4px rgba(22, 40, 57, 0.1);
+      }
+
+      .landing-toggle:hover .landing-toggle-track::before {
+        opacity: 0.08;
+      }
+
+      .landing-toggle-thumb {
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 0 0 2px rgba(22, 40, 57, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1;
+      }
+
+      .landing-toggle-thumb svg {
+        transition: all 0.3s ease;
+      }
+
+      .landing-toggle-thumb .sun-icon {
+        color: #f59e0b;
+        transform: rotate(0deg) scale(1);
+      }
+
+      .landing-toggle-thumb .moon-icon {
+        color: #6366f1;
+        transform: rotate(-90deg) scale(0.8);
+      }
+
+      /* Dark mode active state */
+      .landing-toggle[aria-pressed="true"] .landing-toggle-thumb {
+        transform: translateX(32px);
+        box-shadow: 0 2px 8px rgba(123, 248, 161, 0.4), 0 0 0 2px rgba(123, 248, 161, 0.2);
+      }
+
+      .landing-toggle[aria-pressed="true"] .landing-toggle-thumb .sun-icon {
+        transform: rotate(90deg) scale(0.8);
+        opacity: 0;
+      }
+
+      .landing-toggle[aria-pressed="true"] .landing-toggle-thumb .moon-icon {
+        transform: rotate(0deg) scale(1);
+        opacity: 1;
+      }
+
+      .landing-toggle[aria-pressed="true"] .landing-toggle-track {
+        background: #006d37;
+        border-color: #7bf8a1;
+        box-shadow: 0 0 0 4px rgba(123, 248, 161, 0.15);
+      }
+
+      /* Dark mode (html.dark) styles */
+      html.dark .landing-toggle-track {
+        background: #2b3644;
+        border-color: #3a4453;
+      }
+
+      html.dark .landing-toggle:hover .landing-toggle-track {
+        border-color: #7bf8a1;
+        box-shadow: 0 0 0 4px rgba(123, 248, 161, 0.15);
+      }
+
+      html.dark .landing-toggle-thumb {
+        background: #f2f4f6;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(123, 248, 161, 0.1);
+      }
+
+      html.dark .landing-toggle[aria-pressed="true"] .landing-toggle-track {
+        background: #006d37;
+        border-color: #7bf8a1;
+      }
+
+      html.dark .landing-toggle[aria-pressed="true"] .landing-toggle-thumb {
+        box-shadow: 0 2px 8px rgba(123, 248, 161, 0.5), 0 0 0 2px rgba(123, 248, 161, 0.3);
+      }
+
+      /* Focus visible */
+      .landing-toggle:focus-visible {
+        outline: none;
+      }
+
+      .landing-toggle:focus-visible .landing-toggle-track {
+        outline: 2px solid #162839;
+        outline-offset: 2px;
+      }
+
+      html.dark .landing-toggle:focus-visible .landing-toggle-track {
+        outline-color: #b5c8df;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .feature-card, .mockup-tile, .trust-item, .settings-button,
+        a[href="main.html"], .collapse-btn, .chart-toggle-btn,
+        .budget-item, .transaction-item, .quick-filter-btn,
+        .category-tag, .btn-edit, .btn-delete, .advanced-toggle,
+        .summary-card, input, select, button, .brick,
+        .hicon svg, .chart-icon, .landing-toggle-track,
+        .landing-toggle-thumb, .landing-toggle-thumb svg {
+          animation: none !important;
+          transition: none !important;
+          transform: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="antialiased min-h-screen flex flex-col font-body-md text-body-md bg-background dark:bg-[#101418]">
+    <div class="bg-crystal" id="bgCrystal" aria-hidden="true">
+      <span class="bg-crystal-edge"></span>
+      <span class="bg-crystal-symbol">$</span>
+    </div>
+    <!-- TopNavBar -->
+    <nav class="bg-surface dark:bg-[#161c24] fixed top-0 w-full z-50 border-b border-outline-variant dark:border-[#2a323f]">
+      <div class="max-w-container-max mx-auto px-margin-desktop flex justify-between items-center h-16">
+        <div class="flex items-center gap-3">
+          <span class="brand-badge" aria-hidden="true">
+            <span class="brand-badge-edge"></span>
+            <span class="brand-badge-symbol">$</span>
+          </span>
+          <div class="font-headline-sm text-headline-sm font-bold text-primary dark:text-[#d1e4fb]">Expense Tracker</div>
+        </div>
+        <div class="hidden md:flex gap-gutter items-center font-label-md text-label-md">
+          <a
+            class="text-on-surface-variant dark:text-[#e0e3e5] hover:text-primary hover:bg-surface-container dark:hover:bg-[#262f3d] transition-all duration-300 cursor-pointer relative px-2 py-1 rounded-lg before:absolute before:inset-0 before:scale-x-0 before:bg-primary/10 before:rounded-lg before:transition-transform before:duration-300 hover:before:scale-x-100"
+            onclick="document.getElementById('features-section').scrollIntoView({ behavior: 'smooth' })"
+            >Features</a
+          >
+          <a
+            class="text-on-surface-variant dark:text-[#e0e3e5] hover:text-primary hover:bg-surface-container dark:hover:bg-[#262f3d] transition-all duration-300 cursor-pointer relative px-2 py-1 rounded-lg before:absolute before:inset-0 before:scale-x-0 before:bg-primary/10 before:rounded-lg before:transition-transform before:duration-300 hover:before:scale-x-100"
+            onclick="document.getElementById('how-it-works').scrollIntoView({ behavior: 'smooth' })"
+            >How it Works</a
+          >
+        </div>
+        <div class="flex items-center gap-3">
+          <button
+            id="dark-mode-toggle-landing"
+            type="button"
+            aria-pressed="false"
+            aria-label="Toggle dark mode"
+            class="landing-toggle group relative inline-flex items-center"
+          >
+            <span class="landing-toggle-track"></span>
+            <span class="landing-toggle-thumb">
+              <svg class="sun-icon" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="10" cy="10" r="5" />
+                <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.93 4.93l1.41 1.41M13.66 13.66l1.41 1.41M2 13.66l1.41-1.41M13.66 4.93l1.41-1.41" />
+              </svg>
+              <svg class="moon-icon hidden" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M17.79 10.79A7 7 0 1 1 9.21 2 5 5 0 0 0 17.79 10.79z" />
+              </svg>
+            </span>
+          </button>
+          <a
+            href="main.html"
+            class="bg-primary-container text-on-primary font-label-md text-label-md py-2 px-4 rounded-lg hover:opacity-80 hover:scale-105 hover:shadow-lg transition-all duration-300 inline-flex items-center justify-center relative overflow-hidden before:absolute before:inset-0 before:bg-white/20 before:translate-x-[-100%] before:transition-transform before:duration-500 hover:before:translate-x-[100%]"
+          >
+            <span class="relative z-10">Open App</span>
+          </a>
+        </div>
+      </div>
+    </nav>
+    <main class="flex-grow pt-16 relative">
+      <!-- Hero Section -->
+      <section class="max-w-container-max mx-auto px-margin-desktop py-section-padding grid grid-cols-1 lg:grid-cols-2 gap-stack-lg items-center">
+        <div class="flex flex-col gap-stack-md">
+          <h1 class="font-display-lg text-display-lg text-primary dark:text-[#d1e4fb] hidden md:block">
+            Take control of your spending without spreadsheets
+          </h1>
+          <h1 class="font-display-lg-mobile text-display-lg-mobile text-primary dark:text-[#d1e4fb] md:hidden">
+            Take control of your spending without spreadsheets
+          </h1>
+          <p class="font-body-lg text-body-lg text-on-surface-variant dark:text-[#e0e3e5] max-w-xl">
+            Track every dollar with our simple, no-signup main. 100% free forever.
+          </p>
+          <div>
+            <a
+              href="main.html"
+              class="bg-primary-container text-on-primary font-label-md text-label-md py-3 px-6 rounded-lg hover:opacity-80 hover:scale-105 hover:shadow-xl transition-all duration-300 shadow-sm mt-stack-sm inline-flex items-center justify-center relative overflow-hidden group before:absolute before:inset-0 before:bg-white/20 before:translate-x-[-100%] before:transition-transform before:duration-500 group-hover:before:translate-x-[100%]"
+            >
+              <span class="relative z-10">Get Started — Free</span>
+              <svg class="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </a>
+          </div>
+        </div>
+        <!-- main Mockup (illustrative only — real app lives at main.html) -->
+        <div class="bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl border border-outline-variant dark:border-[#333c48] shadow-lg p-stack-md flex flex-col gap-stack-md">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-stack-sm">
+            <div class="bg-surface dark:bg-[#1a2029] rounded-lg p-stack-sm border border-outline-variant dark:border-[#333c48]">
+              <span class="text-label-sm text-on-surface-variant dark:text-[#a6adb5] block mb-1">Total Income</span>
+              <span class="font-headline-sm text-headline-sm text-secondary block">$5,200</span>
+            </div>
+            <div class="bg-surface dark:bg-[#1a2029] rounded-lg p-stack-sm border border-outline-variant dark:border-[#333c48]">
+              <span class="text-label-sm text-on-surface-variant dark:text-[#a6adb5] block mb-1">Total Expenses</span>
+              <span class="font-headline-sm text-headline-sm text-error block">$3,450</span>
+            </div>
+            <div class="bg-surface dark:bg-[#1a2029] rounded-lg p-stack-sm border border-outline-variant dark:border-[#333c48]">
+              <span class="text-label-sm text-on-surface-variant dark:text-[#a6adb5] block mb-1">Balance</span>
+              <span class="font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] block">$1,750</span>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-stack-sm">
+            <div class="mockup-tile bg-surface dark:bg-[#1a2029] rounded-lg p-stack-sm border border-outline-variant dark:border-[#333c48] h-48 flex items-center justify-center hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 hover:bg-surface-container-lowest dark:hover:bg-[#262f3d] transition-all duration-300 group relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+              <div class="text-on-surface-variant dark:text-[#a6adb5] opacity-50 flex flex-col items-center group-hover:opacity-100 transition-opacity duration-300">
+                <span class="hicon hicon-pie mb-2 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
+                  <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" aria-hidden="true">
+                    <path class="pie-slice pie-slice-1" d="M12 12V3a9 9 0 0 1 8.49 6z" opacity="0.9" />
+                    <path class="pie-slice pie-slice-2" d="M12 12l8.49-3A9 9 0 0 1 12 21z" opacity="0.65" />
+                    <path class="pie-slice pie-slice-3" d="M12 12 12 21A9 9 0 0 1 5 6.5L12 12z" opacity="0.4" />
+                  </svg>
+                </span>
+                <span class="text-label-sm">Categories</span>
+              </div>
+            </div>
+            <div class="mockup-tile bg-surface dark:bg-[#1a2029] rounded-lg p-stack-sm border border-outline-variant dark:border-[#333c48] h-48 flex items-center justify-center hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 hover:bg-surface-container-lowest dark:hover:bg-[#262f3d] transition-all duration-300 group relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+              <div class="text-on-surface-variant dark:text-[#a6adb5] opacity-50 flex flex-col items-center group-hover:opacity-100 transition-opacity duration-300">
+                <span class="hicon hicon-trend mb-2 group-hover:scale-110 group-hover:-rotate-6 transition-all duration-500">
+                  <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path class="trend-arrow" d="M4 17l5-5 4 3 7-8M20 7v5M20 7h-5" />
+                    <circle class="trend-dot" cx="9" cy="12" r="1.4" fill="currentColor" stroke="none" />
+                  </svg>
+                </span>
+                <span class="text-label-sm">Trends</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features Section -->
+      <section id="features-section" class="bg-surface-container-low dark:bg-[#101418] py-section-padding">
+        <div class="max-w-container-max mx-auto px-margin-desktop">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
+            <div class="feature-card bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+              <div class="w-12 h-12 bg-primary-fixed rounded-lg flex items-center justify-center text-primary mb-stack-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                <span class="hicon hicon-pencil">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 20h4L18.5 9.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 15v5Z" />
+                    <path d="M13.5 6.5l4 4" />
+                  </svg>
+                </span>
+              </div>
+              <h3 class="font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] mb-2 text-[20px] leading-tight">Track Income &amp; Expenses</h3>
+              <p class="text-on-surface-variant dark:text-[#a6adb5] text-sm mt-2">Log transactions in seconds, with editable entries and categories.</p>
+            </div>
+            <div class="feature-card bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+              <div class="w-12 h-12 bg-primary-fixed rounded-lg flex items-center justify-center text-primary mb-stack-sm group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300">
+                <span class="hicon hicon-pie">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+                    <path class="pie-slice pie-slice-1" d="M12 12V3a9 9 0 0 1 8.49 6z" opacity="0.9" />
+                    <path class="pie-slice pie-slice-2" d="M12 12l8.49-3A9 9 0 0 1 12 21z" opacity="0.65" />
+                    <path class="pie-slice pie-slice-3" d="M12 12 12 21A9 9 0 0 1 5 6.5L12 12z" opacity="0.4" />
+                  </svg>
+                </span>
+              </div>
+              <h3 class="font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] mb-2 text-[20px] leading-tight">Visual Category Breakdown</h3>
+              <p class="text-on-surface-variant dark:text-[#a6adb5] text-sm mt-2">See exactly where your money is going.</p>
+            </div>
+            <div class="feature-card bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+              <div class="w-12 h-12 bg-primary-fixed rounded-lg flex items-center justify-center text-primary mb-stack-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                <span class="hicon hicon-trend">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path class="trend-arrow" d="M4 17l5-5 4 3 7-8M20 7v5M20 7h-5" />
+                    <circle class="trend-dot" cx="9" cy="12" r="1.4" fill="currentColor" stroke="none" />
+                  </svg>
+                </span>
+              </div>
+              <h3 class="font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] mb-2 text-[20px] leading-tight">Monthly Trends</h3>
+              <p class="text-on-surface-variant dark:text-[#a6adb5] text-sm mt-2">Monitor your spending habits over time.</p>
+            </div>
+            <div class="feature-card bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+              <div class="w-12 h-12 bg-primary-fixed rounded-lg flex items-center justify-center text-primary mb-stack-sm group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300">
+                <span class="hicon hicon-shield">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path class="shield-outline" d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" />
+                    <path class="shield-check" d="M9 12l2 2 4-4" />
+                  </svg>
+                </span>
+              </div>
+              <h3 class="font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] mb-2 text-[20px] leading-tight">Budgets, Backup &amp; CSV Export</h3>
+              <p class="text-on-surface-variant dark:text-[#a6adb5] text-sm mt-2">Set spending limits and keep your data portable.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How It Works -->
+      <section id="how-it-works" class="max-w-container-max mx-auto px-margin-desktop py-section-padding">
+        <h2 class="font-headline-md text-headline-md text-primary dark:text-[#d1e4fb] text-center mb-stack-lg group-hover:scale-105 transition-transform duration-300">How It Works</h2>
+        <div class="flex flex-col md:flex-row justify-between items-center relative">
+          <div class="hidden md:block absolute top-1/2 left-0 w-full h-0.5 bg-outline-variant dark:bg-[#2a323f] -z-10 -translate-y-1/2"></div>
+          <div class="bg-surface-container-lowest dark:bg-[#1a2029] p-stack-md rounded-xl shadow-sm border border-outline-variant dark:border-[#333c48] flex flex-col items-center text-center max-w-[250px] mb-stack-md md:mb-0 relative z-10 group hover:shadow-xl hover:-translate-y-2 hover:border-primary/30 transition-all duration-300 cursor-pointer relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+            <div class="w-10 h-10 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold mb-stack-sm group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">1</div>
+            <span class="font-label-md text-label-md text-primary dark:text-[#d1e4fb] group-hover:text-primary-hover transition-colors">Add a transaction</span>
+          </div>
+          <div class="bg-surface-container-lowest dark:bg-[#1a2029] p-stack-md rounded-xl shadow-sm border border-outline-variant dark:border-[#333c48] flex flex-col items-center text-center max-w-[250px] mb-stack-md md:mb-0 relative z-10 group hover:shadow-xl hover:-translate-y-2 hover:border-primary/30 transition-all duration-300 cursor-pointer relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+            <div class="w-10 h-10 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold mb-stack-sm group-hover:scale-110 group-hover:-rotate-12 transition-all duration-500">2</div>
+            <span class="font-label-md text-label-md text-primary dark:text-[#d1e4fb] group-hover:text-primary-hover transition-colors">Categorize it</span>
+          </div>
+          <div class="bg-surface-container-lowest dark:bg-[#1a2029] p-stack-md rounded-xl shadow-sm border border-outline-variant dark:border-[#333c48] flex flex-col items-center text-center max-w-[250px] relative z-10 group hover:shadow-xl hover:-translate-y-2 hover:border-primary/30 transition-all duration-300 cursor-pointer relative overflow-hidden before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+            <div class="w-10 h-10 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold mb-stack-sm group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">3</div>
+            <span class="font-label-md text-label-md text-primary dark:text-[#d1e4fb] group-hover:text-primary-hover transition-colors">See your insights instantly</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Trust Strip -->
+      <section class="border-y border-outline-variant dark:border-[#2a323f] bg-surface dark:bg-[#161c24] py-stack-md">
+        <div class="max-w-container-max mx-auto px-margin-desktop flex flex-wrap justify-center gap-gutter text-on-surface-variant dark:text-[#e0e3e5] font-label-md text-label-md uppercase tracking-wider">
+          <span class="trust-item flex items-center gap-2 group hover:scale-105 hover:text-primary dark:hover:text-[#d1e4fb] transition-all duration-300 cursor-pointer">
+            <span class="hicon hicon-check group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle class="check-circle-outline" cx="12" cy="12" r="9" />
+                <path class="check-mark" d="M8 12.5l2.5 2.5L16 9.5" />
+              </svg>
+            </span>
+            100% Free
+          </span>
+          <span class="hidden sm:inline text-outline-variant dark:text-[#a6adb5]">•</span>
+          <span class="trust-item flex items-center gap-2 group hover:scale-105 hover:text-primary dark:hover:text-[#d1e4fb] transition-all duration-300 cursor-pointer">
+            <span class="hicon hicon-check group-hover:scale-110 group-hover:-rotate-6 transition-all duration-300">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle class="check-circle-outline" cx="12" cy="12" r="9" />
+                <path class="check-mark" d="M8 12.5l2.5 2.5L16 9.5" />
+              </svg>
+            </span>
+            No Signup Required
+          </span>
+          <span class="hidden sm:inline text-outline-variant dark:text-[#a6adb5]">•</span>
+          <span class="trust-item flex items-center gap-2 group hover:scale-105 hover:text-primary dark:hover:text-[#d1e4fb] transition-all duration-300 cursor-pointer">
+            <span class="hicon hicon-check group-hover:scale-110 group-hover:rotate-6 transition-all duration-300">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle class="check-circle-outline" cx="12" cy="12" r="9" />
+                <path class="check-mark" d="M8 12.5l2.5 2.5L16 9.5" />
+              </svg>
+            </span>
+            Your Data Stays Local
+          </span>
+        </div>
+      </section>
+
+      <!-- Final CTA -->
+      <section class="max-w-container-max mx-auto px-margin-desktop py-section-padding text-center">
+        <h2 class="font-headline-md text-headline-md text-primary dark:text-[#d1e4fb] mb-4">Ready to take control of your finances?</h2>
+        <p class="font-body-lg text-body-lg text-on-surface-variant dark:text-[#e0e3e5] max-w-2xl mx-auto mb-stack-md">
+          Start tracking your expenses today. No signup, no ads, 100% free forever.
+        </p>
+        <a
+          href="main.html"
+          class="bg-primary-container text-on-primary font-label-md text-label-md py-3 px-6 rounded-lg hover:opacity-80 hover:scale-105 hover:shadow-xl transition-all duration-300 shadow-sm inline-flex items-center justify-center relative overflow-hidden group before:absolute before:inset-0 before:bg-white/20 before:translate-x-[-100%] before:transition-transform before:duration-500 group-hover:before:translate-x-[100%]"
+        >
+          <span class="relative z-10">Launch App</span>
+          <svg class="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+      </section>
+
+      <!-- Footer -->
+      <footer class="border-t border-outline-variant dark:border-[#2a323f] bg-surface dark:bg-[#161c24] mt-stack-lg py-stack-md">
+        <div class="max-w-container-max mx-auto px-margin-desktop text-center text-on-surface-variant dark:text-[#a6adb5] font-label-md text-label-md">
+          <p>&copy; 2026 Expense Tracker. Made with <span class="text-error hover:scale-125 hover:rotate-6 transition-all duration-300 inline-block cursor-default">❤</span> for better finances.</p>
+          <p class="mt-2 text-sm">Your data is stored locally in your browser. We don't collect, store, or access any of your information.</p>
+        </div>
+      </footer>
+    </main>
+    <script src="scroll-fx.js"></script>
+    <script>
+      (function () {
+        const prefersReducedMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+        if (prefersReducedMotion) return;
+
+        const spinTargets = [
+          { el: document.querySelector(".brand-badge"), pxPerRotation: 1000 },
+          { el: document.getElementById("bgCrystal"), pxPerRotation: 1400 },
+        ].filter((t) => t.el);
+
+        if (spinTargets.length === 0) return;
+
+        let ticking = false;
+
+        function applyRotation() {
+          const scrollY = window.scrollY || document.documentElement.scrollTop;
+          spinTargets.forEach(({ el, pxPerRotation }) => {
+            const degrees = (scrollY / pxPerRotation) * 360;
+            el.style.transform = `rotate(${degrees}deg)`;
+          });
+          ticking = false;
+        }
+
+        window.addEventListener(
+          "scroll",
+          () => {
+            if (!ticking) {
+              requestAnimationFrame(applyRotation);
+              ticking = true;
+            }
+          },
+          { passive: true },
+        );
+
+        applyRotation();
+      })();
+    </script>
+  </body>
+</html>
