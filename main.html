@@ -172,6 +172,7 @@
     </nav>
 
     <main class="dashboard-shell relative">
+      <h1 class="dashboard-page-title">Expense Tracker Dashboard</h1>
       <section class="summary-row">
         <div class="summary-card summary-card-income">
           <p class="text-sm text-on-surface-variant dark:text-[#a6adb5] mb-2">
@@ -206,6 +207,7 @@
           <button
             class="collapse-btn group relative overflow-hidden"
             type="button"
+            aria-label="Toggle transaction form"
             aria-expanded="true"
             aria-controls="expense-form-content"
           >
@@ -287,7 +289,7 @@
               <button
                 id="expense-submit-btn"
                 type="submit"
-                class="flex-1 bg-primary-container text-on-primary px-4 py-3 rounded-xl font-medium hover:opacity-90 hover:scale-105 hover:shadow-xl transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-white/20 before:translate-x-[-100%] before:transition-transform before:duration-500 group-hover:before:translate-x-[100%]"
+                class="dashboard-primary-button bg-primary-container text-on-primary px-4 py-3 rounded-xl font-medium hover:opacity-90 hover:scale-105 hover:shadow-xl transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-white/20 before:translate-x-[-100%] before:transition-transform before:duration-500 group-hover:before:translate-x-[100%]"
               >
                 <span class="relative z-10">Add Transaction</span>
               </button>
@@ -303,23 +305,23 @@
         </div>
       </section>
 
+      <div class="chart-toggle-row chart-toggle-row-global" role="group" aria-label="Choose chart category">
+        <button
+          class="chart-toggle-btn is-active relative overflow-hidden"
+          data-chart="expense"
+          type="button"
+        >
+          <span class="relative z-10">Expenses</span>
+          <span class="absolute inset-0 bg-primary/20 scale-x-0 origin-left transition-transform duration-300 group-hover:scale-x-100"></span>
+        </button>
+        <button class="chart-toggle-btn relative overflow-hidden" data-chart="income" type="button">
+          <span class="relative z-10">Income</span>
+          <span class="absolute inset-0 bg-secondary/20 scale-x-0 origin-left transition-transform duration-300 group-hover:scale-x-100"></span>
+        </button>
+      </div>
+
       <div class="tier-1-stack">
         <div class="chart-shell">
-          <div class="chart-toggle-row group">
-            <button
-              class="chart-toggle-btn is-active relative overflow-hidden"
-              data-chart="expense"
-              type="button"
-            >
-              <span class="relative z-10">Expenses</span>
-              <span class="absolute inset-0 bg-primary/20 scale-x-0 origin-left transition-transform duration-300 group-hover:scale-x-100"></span>
-            </button>
-            <button class="chart-toggle-btn relative overflow-hidden" data-chart="income" type="button">
-              <span class="relative z-10">Income</span>
-              <span class="absolute inset-0 bg-secondary/20 scale-x-0 origin-left transition-transform duration-300 group-hover:scale-x-100"></span>
-            </button>
-          </div>
-
           <section
             id="expense-chart-section"
             class="brick chart-panel is-active"

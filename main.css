@@ -191,6 +191,19 @@ html.dark body {
   position: relative;
 }
 
+.dashboard-page-title {
+  margin: 0 0 20px;
+  color: #162839;
+  font-family: "Manrope", sans-serif;
+  font-size: clamp(1.5rem, 2.5vw, 2rem);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+html.dark .dashboard-page-title {
+  color: #d1e4fb;
+}
+
 main {
   position: relative;
 }
@@ -298,6 +311,12 @@ html.dark .summary-card-balance:hover {
   grid-template-columns: 1.2fr 1fr;
   gap: 20px;
   margin-top: 20px;
+}
+
+.chart-toggle-row-global {
+  display: flex;
+  width: fit-content;
+  margin: 0 auto 12px;
 }
 
 .chart-shell {
@@ -422,7 +441,7 @@ html.dark .dashboard-hero-card {
 
 .compact-form-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 12px;
   align-items: end;
 }
@@ -455,10 +474,13 @@ html.dark .empty-state-hint {
 
 .advanced-toggle-wrap {
   margin: 26px 0 18px;
+  display: flex;
+  justify-content: center;
 }
 
 .advanced-toggle {
-  width: 100%;
+  width: auto;
+  min-width: 160px;
   border: 1px solid #c4c6cd;
   background: #f3f5f7;
   color: #162839;
@@ -839,7 +861,8 @@ html.dark .brick:hover::before {
 .brick-header h2 {
   margin: 0;
   color: #162839;
-  font-size: 1.125rem;
+  font-size: 1.25rem;
+  line-height: 1.25;
   font-weight: 600;
 }
 
@@ -850,7 +873,8 @@ html.dark .brick-header h2 {
 .collapse-btn {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.75rem;
+  font-weight: 800;
   cursor: pointer;
   color: #7f8c8d;
   padding: 4px 8px;
@@ -980,6 +1004,24 @@ html.dark .collapse-btn:active {
   background-color: #fff;
   color: #191c1e;
   box-sizing: border-box;
+}
+
+.dashboard-primary-button {
+  flex: 0 0 auto;
+  min-width: 180px;
+}
+
+.chart-toggle-row,
+.chart-toggle-btn,
+.advanced-toggle,
+.collapse-btn,
+.dashboard-primary-button,
+#cancel-edit-btn {
+  border-radius: 10px;
+}
+
+.chart-toggle-row {
+  border-radius: 12px;
 }
 
 #expense-form input:hover,
@@ -1818,6 +1860,16 @@ html.dark #dark-mode-toggle:focus-visible {
   transform-origin: 50% 50%;
 }
 
+.trust-item {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.trust-item .hicon-check svg {
+  width: 20px;
+  height: 20px;
+}
+
 .trust-item:hover .hicon-check .check-circle-outline {
   transform: scale(1.12);
 }
@@ -1834,6 +1886,43 @@ html.dark #dark-mode-toggle:focus-visible {
 
 .mockup-tile .hicon svg {
   transition: transform 0.35s ease;
+}
+
+.landing-hero {
+  padding-top: 56px;
+  padding-bottom: 64px;
+}
+
+.landing-hero-title {
+  max-width: 12ch;
+  font-size: clamp(2.25rem, 5vw, 4rem);
+  line-height: 1.05;
+}
+
+.landing-hero-copy {
+  font-size: 1.2rem;
+  line-height: 1.6;
+}
+
+.landing-primary-cta {
+  box-shadow: 0 8px 20px rgba(0, 109, 55, 0.2);
+}
+
+.feature-card-title {
+  min-height: 2.25em;
+}
+
+.feature-card-copy {
+  min-height: 3em;
+}
+
+.how-step {
+  min-height: 148px;
+  width: min(100%, 280px);
+}
+
+.mockup-tile-content {
+  opacity: 0.9;
 }
 
 .mockup-tile:hover .hicon svg {
@@ -1910,6 +1999,41 @@ html.dark #dark-mode-toggle:focus-visible {
 }
 
 @media (max-width: 768px) {
+  .dashboard-page-title {
+    margin-bottom: 16px;
+  }
+
+  .compact-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wide-field {
+    grid-column: span 2;
+  }
+
+  .chart-toggle-row-global {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dashboard-primary-button {
+    min-width: 0;
+  }
+
+  .landing-hero {
+    padding-top: 40px;
+    padding-bottom: 48px;
+  }
+
+  .landing-hero-title {
+    max-width: none;
+  }
+
+  .feature-card-title,
+  .feature-card-copy {
+    min-height: 0;
+  }
+
   .transaction-item {
     flex-direction: column;
     align-items: flex-start;
