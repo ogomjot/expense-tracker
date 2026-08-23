@@ -78,18 +78,6 @@
     class="bg-background dark:bg-[#101418] text-on-background dark:text-[#e0e3e5] antialiased min-h-screen"
   >
     <div class="bg-crystal" id="bgCrystal" aria-hidden="true">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label for="filter-category" class="block text-sm font-semibold mb-2">Category</label>
-                    <select id="filter-category">
-                      <option value="">All Categories</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label for="filter-search" class="block text-sm font-semibold mb-2">Search</label>
-                    <input id="filter-search" type="search" placeholder="Search descriptions" autocomplete="off" />
-                  </div>
-                </div>
       <span class="bg-crystal-edge"></span>
       <span class="bg-crystal-symbol">$</span>
     </div>
@@ -592,6 +580,18 @@
           </div>
           <div class="brick-content" id="filter-content">
             <div class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="filter-category" class="block text-sm font-semibold mb-2">Category</label>
+                  <select id="filter-category">
+                    <option value="">All Categories</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="filter-search" class="block text-sm font-semibold mb-2">Search</label>
+                  <input id="filter-search" type="search" placeholder="Search descriptions" autocomplete="off" />
+                </div>
+              </div>
               <div>
                 <label
                   for="filter-type"
@@ -698,6 +698,16 @@
                   />
                 </label>
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="importSection" class="brick">
+          <div class="brick-header">
+            <h2>Import Statement</h2>
+          </div>
+          <div class="brick-content">
+            <div class="space-y-4">
               <div id="import-drop-zone" class="import-drop-zone" tabindex="0">
                 <button id="import-csv-btn" type="button" class="import-csv-btn">
                   <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
