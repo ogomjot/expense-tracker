@@ -435,6 +435,47 @@ html.dark .chart-toggle-btn.is-active:hover {
   background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
 }
 
+.entry-mode-tabs {
+  display: inline-flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  padding: 5px;
+  border: 1px solid #d9dde1;
+  border-radius: 12px;
+  background: #eef2f5;
+}
+
+.entry-mode-tab {
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #43474c;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.entry-mode-tab.is-active {
+  background: #fff;
+  color: #162839;
+  box-shadow: 0 2px 8px rgba(22, 40, 57, 0.16);
+}
+
+html.dark .entry-mode-tabs {
+  border-color: #3a4453;
+  background: #1f2733;
+}
+
+html.dark .entry-mode-tab {
+  color: #c4c6cd;
+}
+
+html.dark .entry-mode-tab.is-active {
+  background: #2b3644;
+  color: #d1e4fb;
+}
+
 html.dark .dashboard-hero-card {
   background: linear-gradient(180deg, #1a2029 0%, #141b23 100%);
 }

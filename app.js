@@ -517,6 +517,13 @@ class ExpenseTracker {
       expenseForm.addEventListener("submit", (e) => this.handleFormSubmit(e));
     }
 
+    const manualEntryTab = document.getElementById("manual-entry-tab");
+    const importEntryTab = document.getElementById("import-entry-tab");
+    if (manualEntryTab && importEntryTab) {
+      manualEntryTab.addEventListener("click", () => this.setEntryMode("manual"));
+      importEntryTab.addEventListener("click", () => this.setEntryMode("import"));
+    }
+
     const cancelEditBtn = document.getElementById("cancel-edit-btn");
     if (cancelEditBtn) {
       cancelEditBtn.addEventListener("click", () => this.cancelEdit());
@@ -803,6 +810,22 @@ class ExpenseTracker {
   }
 
   // ---------- Add / Edit transaction ----------
+  setEntryMode(mode) {
+    const isImport = mode === "import";
+    const manualTab = document.getElementById("manual-entry-tab");
+    const importTab = document.getElementById("import-entry-tab");
+    const manualPanel = document.getElementById("manual-entry-panel");
+    const importPanel = document.getElementById("import-entry-panel");
+    if (!manualTab || !importTab || !manualPanel || !importPanel) return;
+
+    manualTab.classList.toggle("is-active", !isImport);
+    importTab.classList.toggle("is-active", isImport);
+    manualTab.setAttribute("aria-selected", String(!isImport));
+    importTab.setAttribute("aria-selected", String(isImport));
+    manualPanel.classList.toggle("hidden", isImport);
+    importPanel.classList.toggle("hidden", !isImport);
+  }
+
   handleFormSubmit(e) {
     e.preventDefault();
 
