@@ -3,6 +3,9 @@ import {
   calculateTotals,
   getFilteredTransactions,
   csvField,
+  parseCsv,
+  detectImportFormat,
+  normalizeImportedRows,
   normalizeBackupData,
   capitalize,
   getCategoryTotals,
@@ -119,6 +122,18 @@ describe("getFilteredTransactions", () => {
 
     expect(getFilteredTransactions(transactions)).toEqual(transactions);
   });
+
+  it("filters by category and description search", () => {
+    const transactions = [
+      { type: "expense", category: "food", description: "Weekly groceries", date: "2024-01-05" },
+      { type: "expense", category: "transport", description: "Train ticket", date: "2024-01-06" },
+      { type: "income", category: "salary", description: "Monthly salary", date: "2024-01-07" },
+    ];
+
+    expect(getFilteredTransactions(transactions, { category: "food", search: "GROCER" })).toEqual([
+      transactions[0],
+    ]);
+  });
 });
 
 describe("csvField", () => {
@@ -135,6 +150,28 @@ describe("csvField", () => {
     expect(csvField("+1")).toBe('"\'+1"');
     expect(csvField("-1")).toBe('"\'-1"');
     expect(csvField("@evil")).toBe('"\'@evil"');
+  });
+});
+
+describe("CSV statement import", () => {
+  it("parses quoted commas and CRLF rows", () => {
+    expect(parseCsv('Date,Description,Amount,Type\r\n01/02/2024,"Cafe, lunch","₹1,200.50",Debit\r\n')).toEqual({
+      headers: ["Date", "Description", "Amount", "Type"],
+      rows: [["01/02/2024", "Cafe, lunch", "₹1,200.50", "Debit"]],
+    });
+  });
+
+  it("detects bank columns and normalizes debit rows", () => {
+    const parsed = parseCsv("Date,Narration,Debit,Credit,Balance\n31/12/2024,Groceries,2, ,100\n");
+    const mapping = detectImportFormat(parsed.headers);
+    expect(mapping.source).toBe("bank");
+    expect(normalizeImportedRows(parsed, mapping)).toEqual([{
+      date: "2024-12-31",
+      type: "expense",
+      category: "other",
+      description: "Groceries",
+      amount: 2,
+    }]);
   });
 });
 
@@ -178,6 +215,20 @@ describe("normalizeBackupData", () => {
     expect(() => normalizeBackupData({ transactions: "nope" })).toThrow();
     expect(() => normalizeBackupData(null)).toThrow();
     expect(() => normalizeBackupData([])).toThrow();
+  });
+
+  it("drops invalid transaction records while keeping valid records", () => {
+    const normalized = normalizeBackupData({
+      transactions: [
+        { type: "expense", amount: 20, date: "2024-01-01" },
+        { type: "expense", amount: -5, date: "2024-01-01" },
+        { type: "unknown", amount: 10, date: "2024-01-01" },
+      ],
+    });
+
+    expect(normalized.transactions).toEqual([
+      { type: "expense", amount: 20, date: "2024-01-01" },
+    ]);
   });
 });
 

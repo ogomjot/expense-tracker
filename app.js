@@ -49,14 +49,18 @@ function capitalize(str) {
 
 function getFilteredTransactions(transactions, filterState = {}) {
   const type = filterState.type || "";
+  const category = filterState.category || "";
+  const search = String(filterState.search || "").trim().toLowerCase();
   const dateFrom = filterState.dateFrom || "";
   const dateTo = filterState.dateTo || "";
 
   return (transactions || []).filter((transaction) => {
     const typeMatch = !type || transaction.type === type;
+    const categoryMatch = !category || transaction.category === category;
+    const searchMatch = !search || String(transaction.description || "").toLowerCase().includes(search);
     const dateFromMatch = !dateFrom || transaction.date >= dateFrom;
     const dateToMatch = !dateTo || transaction.date <= dateTo;
-    return typeMatch && dateFromMatch && dateToMatch;
+    return typeMatch && categoryMatch && searchMatch && dateFromMatch && dateToMatch;
   });
 }
 
@@ -94,6 +98,144 @@ function csvField(value) {
   return `"${s.replace(/"/g, '""')}"`;
 }
 
+function parseCsv(text) {
+  if (typeof expenseTrackerCsvParser !== "undefined") {
+    return expenseTrackerCsvParser.parse(text);
+  }
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+
+  for (let index = 0; index < String(text).length; index += 1) {
+    const character = text[index];
+    if (character === '"') {
+      if (quoted && text[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === "," && !quoted) {
+      row.push(field);
+      field = "";
+    } else if ((character === "\n" || character === "\r") && !quoted) {
+      if (character === "\r" && text[index + 1] === "\n") index += 1;
+      row.push(field);
+      if (row.some((value) => value.trim() !== "")) rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += character;
+    }
+  }
+
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    if (row.some((value) => value.trim() !== "")) rows.push(row);
+  }
+  if (quoted) throw new Error("The CSV contains an unfinished quoted field");
+  if (rows.length === 0) throw new Error("The CSV is empty");
+
+  const headers = rows[0].map((header) => header.trim().replace(/^\uFEFF/, ""));
+  return { headers, rows: rows.slice(1).map((values) =>
+    headers.map((_, index) => String(values[index] || "").trim()),
+  ) };
+}
+
+function normalizedHeader(header) {
+  return String(header).toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function findColumn(headers, aliases) {
+  const normalized = headers.map(normalizedHeader);
+  return normalized.findIndex((header) => aliases.some((alias) => header === alias || header.includes(alias)));
+}
+
+function detectImportFormat(headers) {
+  const date = findColumn(headers, ["date", "transactiondate", "valuedate", "txndate"]);
+  const description = findColumn(headers, ["description", "narration", "transactiondetails", "details", "remarks", "particulars", "merchant", "name"]);
+  const amount = findColumn(headers, ["amount", "transactionamount", "withdrawalamount", "depositamount"]);
+  const debit = findColumn(headers, ["debit", "debitamount", "withdrawal", "withdrawals"]);
+  const credit = findColumn(headers, ["credit", "creditamount", "deposit", "deposits"]);
+  const type = findColumn(headers, ["type", "transactiontype", "transactioncategory", "drcr"]);
+
+  if (date === -1 || description === -1) return null;
+  if (debit !== -1 || credit !== -1) {
+    return { source: "bank", date, description, debit, credit };
+  }
+  if (amount !== -1 && type !== -1) {
+    return { source: "upi", date, description, amount, type };
+  }
+  if (amount !== -1) return { source: "upi", date, description, amount, type: -1 };
+  return null;
+}
+
+function normalizeAmount(value) {
+  let cleaned = String(value || "")
+    .replace(/[₹$€£]/g, "")
+    .replace(/\s/g, "");
+  if (cleaned.includes(".") && /,\d{1,2}$/.test(cleaned)) {
+    cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+  } else {
+    cleaned = cleaned.replace(/,/g, "");
+  }
+  cleaned = cleaned.replace(/[^\d.\-]/g, "");
+  const amount = Number(cleaned);
+  return Number.isFinite(amount) ? Math.abs(amount) : NaN;
+}
+
+function normalizeImportDate(value) {
+  const input = String(value || "").trim();
+  let match = input.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (!match) match = input.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  if (!match) return "";
+
+  let year; let month; let day;
+  if (match[1].length === 4) {
+    [, year, month, day] = match;
+  } else {
+    year = match[3];
+    const first = Number(match[1]);
+    const second = Number(match[2]);
+    month = String(first > 12 ? second : first);
+    day = String(first > 12 ? first : second);
+  }
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+  if (date.getUTCFullYear() !== Number(year) || date.getUTCMonth() !== Number(month) - 1 || date.getUTCDate() !== Number(day)) return "";
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function safeImportedText(value) {
+  const text = String(value || "").trim();
+  return /^[=+\-@]/.test(text) ? `'${text}` : text;
+}
+
+function normalizeImportedRows(parsed, mapping) {
+  return parsed.rows.map((row) => {
+    const date = normalizeImportDate(row[mapping.date]);
+    const description = safeImportedText(row[mapping.description]);
+    let type = mapping.type === -1 ? "" : String(row[mapping.type] || "").toLowerCase();
+    let amount = normalizeAmount(row[mapping.amount]);
+
+    if (mapping.debit !== -1 || mapping.credit !== -1) {
+      const debit = mapping.debit === -1 ? NaN : normalizeAmount(row[mapping.debit]);
+      const credit = mapping.credit === -1 ? NaN : normalizeAmount(row[mapping.credit]);
+      if (Number.isFinite(debit) && debit > 0) { amount = debit; type = "expense"; }
+      else if (Number.isFinite(credit) && credit > 0) { amount = credit; type = "income"; }
+    } else {
+      const rawAmount = String(row[mapping.amount] || "").trim();
+      type = mapping.type === -1
+        ? (rawAmount.startsWith("-") ? "expense" : "income")
+        : (/debit|withdraw|expense|dr|payment|sent/.test(type) ? "expense" : "income");
+    }
+
+    return date && description && Number.isFinite(amount) && amount > 0
+      ? { date, type, category: type === "income" ? "other" : "other", description, amount }
+      : null;
+  }).filter(Boolean);
+}
+
 function normalizeBackupData(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new Error("Backup data must be an object");
@@ -111,7 +253,16 @@ function normalizeBackupData(data) {
   const normalized = {
     version: data.version ?? 1,
     exportedAt: data.exportedAt ?? new Date().toISOString(),
-    transactions: safeTransactions,
+    transactions: safeTransactions
+      .filter((transaction) =>
+        transaction &&
+        (transaction.type === "income" || transaction.type === "expense") &&
+        typeof transaction.date === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/.test(transaction.date) &&
+        Number.isFinite(Number(transaction.amount)) &&
+        Number(transaction.amount) > 0,
+      )
+      .map((transaction) => ({ ...transaction, amount: Number(transaction.amount) })),
     customCategories: {
       expense: Array.isArray(importedCats.expense) ? importedCats.expense : [],
       income: Array.isArray(importedCats.income) ? importedCats.income : [],
@@ -303,11 +454,15 @@ class ExpenseTracker {
   }
 
   formatDate(dateString) {
+    const [year, month, day] = String(dateString).split("-").map(Number);
+    const localDate = year && month && day
+      ? new Date(year, month - 1, day)
+      : new Date(dateString);
     return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
-    }).format(new Date(dateString));
+    }).format(localDate);
   }
 
   initAdvancedToggle() {
@@ -370,6 +525,15 @@ class ExpenseTracker {
     const filterType = document.getElementById("filter-type");
     if (filterType) filterType.addEventListener("change", () => this.render());
 
+    const filterCategory = document.getElementById("filter-category");
+    if (filterCategory) filterCategory.addEventListener("change", () => this.render());
+
+    const filterSearch = document.getElementById("filter-search");
+    if (filterSearch) filterSearch.addEventListener("input", () => this.render());
+
+    const emptyStateReset = document.getElementById("empty-state-reset");
+    if (emptyStateReset) emptyStateReset.addEventListener("click", () => this.resetFilters());
+
     const resetFilter = document.getElementById("reset-filter");
     if (resetFilter)
       resetFilter.addEventListener("click", () => this.resetFilters());
@@ -416,6 +580,25 @@ class ExpenseTracker {
     const importJsonInput = document.getElementById("import-json-input");
     if (importJsonInput) {
       importJsonInput.addEventListener("change", (e) => this.importBackup(e));
+    }
+
+    const importCsvInput = document.getElementById("import-csv-input");
+    const importCsvButton = document.getElementById("import-csv-btn");
+    const importDropZone = document.getElementById("import-drop-zone");
+    if (importCsvButton && importCsvInput) {
+      importCsvButton.addEventListener("click", () => importCsvInput.click());
+      importCsvInput.addEventListener("change", (event) => this.importCsvFile(event.target.files[0]));
+    }
+    if (importDropZone) {
+      ["dragenter", "dragover"].forEach((eventName) => importDropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        importDropZone.classList.add("is-dragging");
+      }));
+      ["dragleave", "drop"].forEach((eventName) => importDropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        importDropZone.classList.remove("is-dragging");
+      }));
+      importDropZone.addEventListener("drop", (event) => this.importCsvFile(event.dataTransfer.files[0]));
     }
 
     // Event delegation for dynamically created elements
@@ -478,7 +661,9 @@ class ExpenseTracker {
   }
 
   setDefaultDate() {
-    const today = new Date().toISOString().split("T")[0];
+    const now = new Date();
+    const pad = (value) => String(value).padStart(2, "0");
+    const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
     const expenseDateEl = document.getElementById("expense-date");
     if (expenseDateEl && !this.editingId) expenseDateEl.value = today;
   }
@@ -539,6 +724,24 @@ class ExpenseTracker {
   updateCategoryDropdowns() {
     const typeSelect = document.getElementById("expense-type");
     const categorySelect = document.getElementById("expense-category");
+    const filterCategory = document.getElementById("filter-category");
+
+    if (filterCategory) {
+      const selectedCategory = filterCategory.value;
+      const categories = [...new Set([
+        ...this.getAllCategories("expense"),
+        ...this.getAllCategories("income"),
+      ])];
+      filterCategory.innerHTML = '<option value="">All Categories</option>';
+      categories.forEach((cat) => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = this.capitalize(cat);
+        filterCategory.appendChild(option);
+      });
+      filterCategory.value = selectedCategory;
+    }
+
     if (!typeSelect || !categorySelect) return;
 
     const type = typeSelect.value;
@@ -688,10 +891,14 @@ class ExpenseTracker {
   // ---------- Filters ----------
   resetFilters() {
     const filterType = document.getElementById("filter-type");
+    const filterCategory = document.getElementById("filter-category");
+    const filterSearch = document.getElementById("filter-search");
     const filterDateFrom = document.getElementById("filter-date-from");
     const filterDateTo = document.getElementById("filter-date-to");
 
     if (filterType) filterType.value = "";
+    if (filterCategory) filterCategory.value = "";
+    if (filterSearch) filterSearch.value = "";
     if (filterDateFrom) filterDateFrom.value = "";
     if (filterDateTo) filterDateTo.value = "";
 
@@ -724,25 +931,28 @@ class ExpenseTracker {
     this.render();
   }
 
-  getFilteredTransactions() {
+  getFilterState() {
     const filterType = document.getElementById("filter-type");
+    const filterCategory = document.getElementById("filter-category");
+    const filterSearch = document.getElementById("filter-search");
     const filterDateFrom = document.getElementById("filter-date-from");
     const filterDateTo = document.getElementById("filter-date-to");
 
-    const type = filterType ? filterType.value : "";
-    const dateFrom = filterDateFrom ? filterDateFrom.value : "";
-    const dateTo = filterDateTo ? filterDateTo.value : "";
+    return {
+      type: filterType ? filterType.value : "",
+      category: filterCategory ? filterCategory.value : "",
+      search: filterSearch ? filterSearch.value : "",
+      dateFrom: filterDateFrom ? filterDateFrom.value : "",
+      dateTo: filterDateTo ? filterDateTo.value : "",
+    };
+  }
 
-    return getFilteredTransactions(this.transactions, { type, dateFrom, dateTo });
+  getFilteredTransactions() {
+    return getFilteredTransactions(this.transactions, this.getFilterState());
   }
 
   calculateTotals(useFiltered = false) {
-    const transactions = useFiltered ? this.getFilteredTransactions() : this.transactions;
-    return calculateTotals(transactions, useFiltered, {
-      type: document.getElementById("filter-type")?.value || "",
-      dateFrom: document.getElementById("filter-date-from")?.value || "",
-      dateTo: document.getElementById("filter-date-to")?.value || "",
-    });
+    return calculateTotals(this.transactions, useFiltered, this.getFilterState());
   }
 
   deleteTransaction(id) {
@@ -765,10 +975,7 @@ class ExpenseTracker {
   }
 
   updateSummary() {
-    const hasFilters =
-      document.getElementById("filter-type").value ||
-      document.getElementById("filter-date-from").value ||
-      document.getElementById("filter-date-to").value;
+    const hasFilters = Object.values(this.getFilterState()).some(Boolean);
     const { income, expenses, balance } = this.calculateTotals(hasFilters);
 
     const totalIncomeEl = document.getElementById("total-income");
@@ -788,15 +995,18 @@ class ExpenseTracker {
   renderTransactions() {
     const container = document.getElementById("transactions-list");
     if (!container) return;
+    const emptyState = document.getElementById("transactions-empty-state");
 
     const filteredTransactions = this.getFilteredTransactions();
 
     if (filteredTransactions.length === 0) {
       container.innerHTML = "";
-      this.setCardCollapsed("transactions-section", true);
+      emptyState?.classList.toggle("hidden", this.transactions.length === 0);
+      this.setCardCollapsed("transactions-section", this.transactions.length === 0);
       return;
     }
 
+    emptyState?.classList.add("hidden");
     this.setCardCollapsed("transactions-section", false);
     filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
 
@@ -863,7 +1073,7 @@ class ExpenseTracker {
   }
 
   getCategoryTotals(type) {
-    return getCategoryTotals(this.transactions, type);
+    return getCategoryTotals(this.getFilteredTransactions(), type);
   }
 
   renderCharts() {
@@ -1030,7 +1240,7 @@ class ExpenseTracker {
     this.setCardCollapsed("budget-section", false);
 
     container.innerHTML = "";
-    const expenseData = this.getCategoryTotals("expense");
+    const expenseData = getCategoryTotals(this.getFilteredTransactions(), "expense");
 
     Object.entries(this.budgets).forEach(([category, budgetAmount]) => {
       const spent = expenseData[category] || 0;
@@ -1085,7 +1295,7 @@ class ExpenseTracker {
     if (!canvas) return;
 
     const monthlyData = {};
-    this.transactions.forEach((transaction) => {
+    this.getFilteredTransactions().forEach((transaction) => {
       const month = transaction.date.substring(0, 7);
       if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
       if (transaction.type === "income") monthlyData[month].income += transaction.amount;
@@ -1214,6 +1424,182 @@ class ExpenseTracker {
     event.target.value = "";
   }
 
+  setImportError(message) {
+    const error = document.getElementById("import-csv-error");
+    if (!error) return;
+    error.textContent = message || "";
+    error.classList.toggle("hidden", !message);
+  }
+
+  importCsvFile(file) {
+    this.setImportError("");
+    if (!file) return;
+    if (!String(file.name).toLowerCase().endsWith(".csv")) {
+      this.setImportError("Please choose a CSV file.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.setImportError("CSV files must be 5 MB or smaller.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        this.processCsvImport(String(event.target.result || ""));
+      } catch (error) {
+        this.setImportError(error.message || "Could not read that CSV file.");
+      }
+    };
+    reader.onerror = () => this.setImportError("Could not read that CSV file.");
+    reader.readAsText(file);
+  }
+
+  processCsvImport(text) {
+    const parsed = parseCsv(text);
+    if (parsed.rows.length > 5000) {
+      throw new Error("CSV files may contain at most 5000 data rows.");
+    }
+    const detected = detectImportFormat(parsed.headers);
+    if (!detected) {
+      this.showImportMapping(parsed);
+      return;
+    }
+    this.showImportPreview(normalizeImportedRows(parsed, detected));
+  }
+
+  commitImportedTransactions(transactions) {
+    if (transactions.length === 0) throw new Error("No valid transactions were found in that CSV.");
+    const imported = transactions.map((transaction, index) => ({
+      ...transaction,
+      id: Date.now() + index,
+      timestamp: new Date().toISOString(),
+    }));
+    this.transactions.push(...imported);
+    this.saveTransactions();
+    this.render();
+    this.toast(`${imported.length} transaction${imported.length === 1 ? "" : "s"} imported`, "success");
+  }
+
+  showImportPreview(transactions) {
+    const panel = document.getElementById("import-preview-panel");
+    if (!panel) throw new Error("Import preview is unavailable.");
+    this.pendingImportTransactions = transactions;
+    panel.textContent = "";
+    const heading = document.createElement("h3");
+    heading.textContent = `Preview: ${transactions.length} transaction${transactions.length === 1 ? "" : "s"}`;
+    panel.appendChild(heading);
+    const table = document.createElement("table");
+    const header = document.createElement("tr");
+    ["Keep", "Date", "Description", "Type", "Amount"].forEach((text) => {
+      const cell = document.createElement("th");
+      cell.textContent = text;
+      header.appendChild(cell);
+    });
+    table.appendChild(header);
+    transactions.slice(0, 10).forEach((transaction, index) => {
+      const row = document.createElement("tr");
+      const keepCell = document.createElement("td");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = true;
+      checkbox.dataset.importIndex = String(index);
+      keepCell.appendChild(checkbox);
+      row.appendChild(keepCell);
+      [transaction.date, transaction.description, capitalize(transaction.type), String(transaction.amount)].forEach((value) => {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.appendChild(cell);
+      });
+      table.appendChild(row);
+    });
+    panel.appendChild(table);
+    const note = document.createElement("p");
+    note.textContent = transactions.length > 10 ? "Showing the first 10 rows. Unchecked preview rows will be excluded." : "Uncheck rows you do not want to import.";
+    panel.appendChild(note);
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.textContent = "Confirm import";
+    confirm.addEventListener("click", () => {
+      const excluded = new Set(Array.from(panel.querySelectorAll("input[data-import-index]:not(:checked)")).map((input) => Number(input.dataset.importIndex)));
+      this.commitImportedTransactions(transactions.filter((_, index) => !excluded.has(index)));
+      this.cancelImport();
+    });
+    panel.appendChild(confirm);
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", () => this.cancelImport());
+    panel.appendChild(cancel);
+    panel.classList.remove("hidden");
+  }
+
+  cancelImport() {
+    this.pendingImportTransactions = null;
+    ["import-preview-panel", "import-mapping-panel"].forEach((id) => {
+      const panel = document.getElementById(id);
+      if (panel) {
+        panel.textContent = "";
+        panel.classList.add("hidden");
+      }
+    });
+    this.setImportError("");
+  }
+
+  showImportMapping(parsed) {
+    const panel = document.getElementById("import-mapping-panel");
+    if (!panel) throw new Error("Column mapping is unavailable.");
+    panel.textContent = "";
+    const heading = document.createElement("h3");
+    heading.textContent = "Map CSV columns";
+    panel.appendChild(heading);
+    const fields = [
+      ["date", "Date"], ["description", "Description"], ["amount", "Amount"], ["type", "Type (debit/credit)"],
+    ];
+    const selects = {};
+    fields.forEach(([key, labelText]) => {
+      const label = document.createElement("label");
+      label.textContent = labelText;
+      const select = document.createElement("select");
+      select.dataset.mapping = key;
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "Choose a column";
+      select.appendChild(empty);
+      parsed.headers.forEach((header, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = header;
+        select.appendChild(option);
+      });
+      label.appendChild(select);
+      panel.appendChild(label);
+      selects[key] = select;
+    });
+    const typeHint = document.createElement("p");
+    typeHint.textContent = "Type values should contain debit/expense or credit/income.";
+    panel.appendChild(typeHint);
+    const submit = document.createElement("button");
+    submit.type = "button";
+    submit.textContent = "Import mapped rows";
+    submit.addEventListener("click", () => {
+      const required = ["date", "description", "amount", "type"];
+      if (required.some((key) => selects[key].value === "")) {
+        this.setImportError("Choose a column for each required field.");
+        return;
+      }
+      const mapping = Object.fromEntries(required.map((key) => [key, Number(selects[key].value)]));
+      try {
+        this.showImportPreview(normalizeImportedRows(parsed, mapping));
+        panel.classList.add("hidden");
+      } catch (error) {
+        this.setImportError(error.message);
+      }
+    });
+    panel.appendChild(submit);
+    panel.classList.remove("hidden");
+  }
+
   downloadFile(content, filename, mimeType) {
     const blob = new Blob([content], { type: mimeType });
     const url = window.URL.createObjectURL(blob);
@@ -1316,6 +1702,9 @@ if (typeof window !== "undefined") {
   window.getFilteredTransactions = getFilteredTransactions;
   window.getCategoryTotals = getCategoryTotals;
   window.csvField = csvField;
+  window.parseCsv = parseCsv;
+  window.detectImportFormat = detectImportFormat;
+  window.normalizeImportedRows = normalizeImportedRows;
   window.normalizeBackupData = normalizeBackupData;
   window.capitalize = capitalize;
 }
@@ -1326,6 +1715,9 @@ if (typeof module !== "undefined") {
     getFilteredTransactions,
     getCategoryTotals,
     csvField,
+    parseCsv,
+    detectImportFormat,
+    normalizeImportedRows,
     normalizeBackupData,
     capitalize,
   };

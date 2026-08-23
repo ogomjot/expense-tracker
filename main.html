@@ -78,6 +78,18 @@
     class="bg-background dark:bg-[#101418] text-on-background dark:text-[#e0e3e5] antialiased min-h-screen"
   >
     <div class="bg-crystal" id="bgCrystal" aria-hidden="true">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label for="filter-category" class="block text-sm font-semibold mb-2">Category</label>
+                    <select id="filter-category">
+                      <option value="">All Categories</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="filter-search" class="block text-sm font-semibold mb-2">Search</label>
+                    <input id="filter-search" type="search" placeholder="Search descriptions" autocomplete="off" />
+                  </div>
+                </div>
       <span class="bg-crystal-edge"></span>
       <span class="bg-crystal-symbol">$</span>
     </div>
@@ -453,6 +465,10 @@
           </div>
           <div class="brick-content" id="transactions-content">
             <div id="transactions-list" class="transactions-list"></div>
+            <div id="transactions-empty-state" class="transactions-empty-state hidden" role="status">
+              <p>No transactions match these filters.</p>
+              <button id="empty-state-reset" type="button" class="quick-filter-btn">Reset filters</button>
+            </div>
           </div>
         </section>
       </div>
@@ -682,6 +698,21 @@
                   />
                 </label>
               </div>
+              <div id="import-drop-zone" class="import-drop-zone" tabindex="0">
+                <button id="import-csv-btn" type="button" class="import-csv-btn">
+                  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3v12" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M5 21h14" />
+                  </svg>
+                  <span>Import Statement</span>
+                </button>
+                <input id="import-csv-input" type="file" accept=".csv,text/csv" class="hidden" />
+                <p>Drop a CSV statement here or choose a file</p>
+              </div>
+              <p id="import-csv-error" class="import-csv-error hidden" role="status"></p>
+              <div id="import-mapping-panel" class="import-mapping-panel hidden"></div>
+              <div id="import-preview-panel" class="import-preview-panel hidden"></div>
             </div>
           </div>
         </section>
@@ -702,6 +733,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4"></script>
+    <script src="csv-import.js"></script>
     <script src="app.js"></script>
     <script src="scroll-fx.js"></script>
   </body>
