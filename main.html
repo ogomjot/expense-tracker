@@ -22,9 +22,13 @@
          prevent a flash of the wrong theme (FOUC) on every reload. -->
     <script>
       (function () {
-        if (localStorage.getItem("theme") === "dark") {
-          document.documentElement.classList.add("dark");
-          document.documentElement.classList.remove("light");
+        try {
+          if (localStorage.getItem("theme") === "dark") {
+            document.documentElement.classList.add("dark");
+            document.documentElement.classList.remove("light");
+          }
+        } catch (error) {
+          // Theme storage is optional when opening the file directly.
         }
       })();
     </script>
@@ -612,13 +616,13 @@
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label for="filter-category" class="block text-sm font-semibold mb-2">Category</label>
-                  <select id="filter-category">
+                  <select id="filter-category" class="filter-field">
                     <option value="">All Categories</option>
                   </select>
                 </div>
                 <div>
                   <label for="filter-search" class="block text-sm font-semibold mb-2">Search</label>
-                  <input id="filter-search" type="search" placeholder="Search descriptions" autocomplete="off" />
+                  <input id="filter-search" class="filter-field" type="search" placeholder="Search descriptions" autocomplete="off" />
                 </div>
               </div>
               <div>

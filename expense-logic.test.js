@@ -9,6 +9,10 @@ import {
   normalizeBackupData,
   capitalize,
   getCategoryTotals,
+  getBudgetPeriodRange,
+  getCategorySpendForPeriod,
+  evaluateBudgetAlerts,
+  getBudgetProgressState,
 } from "./app.js";
 
 describe("calculateTotals", () => {
@@ -258,6 +262,150 @@ describe("getCategoryTotals", () => {
     expect(getCategoryTotals(transactions, "expense")).toEqual({
       food: 25,
       transport: 20,
+    });
+  });
+});
+
+describe("budget alerts", () => {
+  it("fires an 80% warning once for a category in the current period", () => {
+    const transactions = [
+      { id: 1, type: "expense", category: "food", amount: 80, date: "2024-08-05" },
+    ];
+    const budgets = { food: 100 };
+    const period = { dateFrom: "2024-08-01", dateTo: "2024-08-31" };
+
+    const alerts = evaluateBudgetAlerts(transactions, budgets, period, {});
+
+    expect(alerts).toEqual([
+      { category: "food", level: "warning", message: "You've used 80% of your Food budget", spend: 80, budget: 100 },
+    ]);
+
+    const repeats = evaluateBudgetAlerts([
+      ...transactions,
+      { id: 2, type: "expense", category: "food", amount: 10, date: "2024-08-06" },
+    ], budgets, period, { food: { warning: true, alert: false } });
+
+    expect(repeats).toEqual([]);
+  });
+
+  it("fires the 100% alert once and does not double-fire on later transactions", () => {
+    const period = { dateFrom: "2024-08-01", dateTo: "2024-08-31" };
+    const budgets = { food: 100 };
+    const initial = evaluateBudgetAlerts([
+      { id: 1, type: "expense", category: "food", amount: 100, date: "2024-08-10" },
+    ], budgets, period, {});
+
+    expect(initial).toEqual([
+      { category: "food", level: "alert", message: "You've used 100% of your Food budget", spend: 100, budget: 100 },
+    ]);
+
+    const repeat = evaluateBudgetAlerts([
+      { id: 1, type: "expense", category: "food", amount: 100, date: "2024-08-10" },
+      { id: 2, type: "expense", category: "food", amount: 10, date: "2024-08-12" },
+    ], budgets, period, { food: { warning: true, alert: true } });
+
+    expect(repeat).toEqual([]);
+  });
+
+  it("batches CSV import alerts into one toast per category", () => {
+    const period = { dateFrom: "2024-08-01", dateTo: "2024-08-31" };
+    const budgets = { food: 100, transport: 50 };
+    const importTransactions = [
+      { id: 1, type: "expense", category: "food", amount: 50, date: "2024-08-03" },
+      { id: 2, type: "expense", category: "food", amount: 60, date: "2024-08-15" },
+      { id: 3, type: "expense", category: "transport", amount: 60, date: "2024-08-20" },
+    ];
+
+    const alerts = evaluateBudgetAlerts(importTransactions, budgets, period, {});
+
+    expect(alerts).toEqual([
+      { category: "food", level: "alert", message: "You've used 110% of your Food budget", spend: 110, budget: 100 },
+      { category: "transport", level: "alert", message: "You've used 120% of your Transport budget", spend: 60, budget: 50 },
+    ]);
+  });
+
+  it("calculates the budget progress indicator state for the current period", () => {
+    const spend = getCategorySpendForPeriod([
+      { type: "expense", category: "food", amount: 80, date: "2024-08-05" },
+      { type: "expense", category: "food", amount: 10, date: "2024-08-12" },
+    ], "food", { dateFrom: "2024-08-01", dateTo: "2024-08-31" });
+
+    expect(spend).toBe(90);
+    expect(getBudgetProgressState(90, 100)).toEqual({
+      percentage: 90,
+      status: "warning",
+      fillWidth: "90%",
+      label: "90%",
+      remaining: 10,
+      statusLabel: "Close to limit",
+    });
+
+    expect(getBudgetProgressState(40, 100)).toEqual({
+      percentage: 40,
+      status: "safe",
+      fillWidth: "40%",
+      label: "40%",
+      remaining: 60,
+      statusLabel: "On track",
+    });
+
+    expect(getBudgetProgressState(120, 100)).toEqual({
+      percentage: 100,
+      status: "alert",
+      fillWidth: "100%",
+      label: "100%",
+      remaining: -20,
+      statusLabel: "Over budget",
+    });
+  });
+
+  it("uses the current month period when no explicit budget dates are supplied", () => {
+    const now = new Date("2024-08-15T12:00:00Z");
+    const range = getBudgetPeriodRange({}, now);
+
+    expect(range).toEqual({
+      dateFrom: "2024-08-01",
+      dateTo: "2024-08-31",
+    });
+  });
+
+  it("recalculates the indicator after removing a transaction from the period", () => {
+    const period = { dateFrom: "2024-08-01", dateTo: "2024-08-31" };
+    const transactions = [
+      { type: "expense", category: "food", amount: 90, date: "2024-08-05" },
+      { type: "expense", category: "food", amount: 20, date: "2024-08-10" },
+    ];
+
+    const spendAfterDelete = getCategorySpendForPeriod(
+      transactions.filter((transaction) => transaction.amount !== 20),
+      "food",
+      period,
+    );
+
+    expect(spendAfterDelete).toBe(90);
+    expect(getBudgetProgressState(spendAfterDelete, 100)).toEqual({
+      percentage: 90,
+      status: "warning",
+      fillWidth: "90%",
+      label: "90%",
+      remaining: 10,
+      statusLabel: "Close to limit",
+    });
+
+    const spendBackUnderThreshold = getCategorySpendForPeriod(
+      transactions.filter((transaction) => transaction.amount !== 90),
+      "food",
+      period,
+    );
+
+    expect(spendBackUnderThreshold).toBe(20);
+    expect(getBudgetProgressState(spendBackUnderThreshold, 100)).toEqual({
+      percentage: 20,
+      status: "safe",
+      fillWidth: "20%",
+      label: "20%",
+      remaining: 80,
+      statusLabel: "On track",
     });
   });
 });

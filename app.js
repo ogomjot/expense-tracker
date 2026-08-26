@@ -92,6 +92,124 @@ function getCategoryTotals(transactions, type) {
   return categoryTotals;
 }
 
+function isoDateString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getBudgetPeriodRange(filterState = {}, now = new Date()) {
+  const explicitFrom = String(filterState.dateFrom || "").trim();
+  const explicitTo = String(filterState.dateTo || "").trim();
+
+  if (explicitFrom || explicitTo) {
+    return {
+      dateFrom: explicitFrom,
+      dateTo: explicitTo,
+    };
+  }
+
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  return {
+    dateFrom: isoDateString(start),
+    dateTo: isoDateString(end),
+  };
+}
+
+function getCategorySpendForPeriod(transactions, category, filterState = {}, now = new Date()) {
+  const period = getBudgetPeriodRange(filterState, now);
+  const categoryName = String(category || "");
+
+  return (transactions || []).reduce((sum, transaction) => {
+    if (transaction.type !== "expense") return sum;
+    if (transaction.category !== categoryName) return sum;
+    if (!transaction.date) return sum;
+    if (transaction.date < period.dateFrom || transaction.date > period.dateTo) return sum;
+    return sum + Number(transaction.amount || 0);
+  }, 0);
+}
+
+function getBudgetProgressState(spent, budget) {
+  const numericSpent = Number(spent) || 0;
+  const numericBudget = Number(budget) || 0;
+
+  if (!numericBudget || numericBudget <= 0) {
+    return {
+      percentage: 0,
+      status: "safe",
+      fillWidth: "0%",
+      label: "0%",
+      remaining: numericBudget,
+      statusLabel: "No budget",
+    };
+  }
+
+  const rawPercentage = (numericSpent / numericBudget) * 100;
+  const percentage = Math.min(rawPercentage, 100);
+  const remaining = numericBudget - numericSpent;
+  let status = "safe";
+  let statusLabel = "On track";
+
+  if (numericSpent >= numericBudget) {
+    status = "alert";
+    statusLabel = "Over budget";
+  } else if (numericSpent >= numericBudget * 0.8) {
+    status = "warning";
+    statusLabel = "Close to limit";
+  }
+
+  return {
+    percentage,
+    status,
+    fillWidth: `${percentage}%`,
+    label: `${Math.round(percentage)}%`,
+    remaining,
+    statusLabel,
+  };
+}
+
+function evaluateBudgetAlerts(transactions, budgets, filterState = {}, alertState = {}) {
+  const period = getBudgetPeriodRange(filterState);
+  const triggered = [];
+
+  Object.entries(budgets || {}).forEach(([category, budget]) => {
+    const numericBudget = Number(budget);
+    if (!category || !Number.isFinite(numericBudget) || numericBudget <= 0) return;
+
+    const spend = getCategorySpendForPeriod(transactions, category, period);
+    const categoryState = alertState[category] || { warning: false, alert: false };
+    const percent = (spend / numericBudget) * 100;
+
+    if (spend >= numericBudget && !categoryState.alert) {
+      categoryState.alert = true;
+      categoryState.warning = true;
+      triggered.push({
+        category,
+        level: "alert",
+        message: `You've used ${Math.round(percent)}% of your ${capitalize(category)} budget`,
+        spend,
+        budget: numericBudget,
+      });
+    } else if (spend >= numericBudget * 0.8 && spend < numericBudget && !categoryState.warning) {
+      categoryState.warning = true;
+      triggered.push({
+        category,
+        level: "warning",
+        message: `You've used ${Math.round(percent)}% of your ${capitalize(category)} budget`,
+        spend,
+        budget: numericBudget,
+      });
+    }
+
+    alertState[category] = categoryState;
+  });
+
+  return triggered;
+}
+
 function csvField(value) {
   let s = String(value);
   if (/^[=+\-@]/.test(s)) s = "'" + s;
@@ -300,6 +418,7 @@ class ExpenseTracker {
     this.expenseChart = null;
     this.incomeChart = null;
     this.trendsChart = null;
+    this.budgetAlertState = {};
 
     this.initializeEventListeners();
     this.setDefaultDate();
@@ -377,6 +496,23 @@ class ExpenseTracker {
       el.classList.remove("toast-visible");
       setTimeout(() => el.remove(), 250);
     }, 3200);
+  }
+
+  getBudgetAlertKey(period = {}) {
+    const effective = period && Object.keys(period).length > 0 ? period : getBudgetPeriodRange(this.getFilterState());
+    return `${effective.dateFrom || ""}|${effective.dateTo || ""}`;
+  }
+
+  checkBudgetAlertsForTransactions(transactions = this.transactions, budgets = this.budgets, period = getBudgetPeriodRange(this.getFilterState())) {
+    const key = this.getBudgetAlertKey(period);
+    const state = this.budgetAlertState[key] || {};
+    const alerts = evaluateBudgetAlerts(transactions, budgets, period, state);
+    this.budgetAlertState[key] = state;
+    alerts.forEach((alert) => {
+      const toastType = alert.level === "alert" ? "alert" : "warning";
+      this.toast(alert.message, toastType);
+    });
+    return alerts;
   }
 
   // ---------- Dark mode ----------
@@ -867,6 +1003,7 @@ class ExpenseTracker {
       });
       this.saveTransactions();
       this.toast("Transaction added", "success");
+      this.checkBudgetAlertsForTransactions();
       this.resetForm();
     }
 
@@ -982,6 +1119,7 @@ class ExpenseTracker {
     this.transactions = this.transactions.filter((t) => t.id !== id);
     this.saveTransactions();
     if (this.editingId === id) this.cancelEdit();
+    this.checkBudgetAlertsForTransactions();
     this.toast("Transaction deleted", "info");
     this.render();
   }
@@ -1109,6 +1247,12 @@ class ExpenseTracker {
     const ctx = document.getElementById("expenseChart");
     if (!ctx) return;
 
+    if (typeof Chart === "undefined") {
+      ctx.style.display = "none";
+      this.updateChartIconVisibility("expenseChart", "expenseChartIcon");
+      return;
+    }
+
     const labels = Object.keys(categoryTotals).map((cat) => this.capitalize(cat));
     const data = Object.values(categoryTotals);
 
@@ -1144,6 +1288,12 @@ class ExpenseTracker {
     const categoryTotals = this.getCategoryTotals("income");
     const ctx = document.getElementById("incomeChart");
     if (!ctx) return;
+
+    if (typeof Chart === "undefined") {
+      ctx.style.display = "none";
+      this.updateChartIconVisibility("incomeChart", "incomeChartIcon");
+      return;
+    }
 
     const labels = Object.keys(categoryTotals).map((cat) => this.capitalize(cat));
     const data = Object.values(categoryTotals);
@@ -1263,14 +1413,13 @@ class ExpenseTracker {
     this.setCardCollapsed("budget-section", false);
 
     container.innerHTML = "";
-    const expenseData = getCategoryTotals(this.getFilteredTransactions(), "expense");
+    const visibleTransactions = this.getFilteredTransactions();
+    const period = getBudgetPeriodRange(this.getFilterState());
 
     Object.entries(this.budgets).forEach(([category, budgetAmount]) => {
-      const spent = expenseData[category] || 0;
-      const percentage = Math.min((spent / budgetAmount) * 100, 100);
-      let status = "";
-      if (spent > budgetAmount) status = "exceeded";
-      else if (spent > budgetAmount * 0.8) status = "warning";
+      const spent = getCategorySpendForPeriod(visibleTransactions, category, period);
+      const progressState = getBudgetProgressState(spent, budgetAmount);
+      const status = progressState.status === "alert" ? "exceeded" : progressState.status;
 
       const item = document.createElement("div");
       item.className = `budget-item ${status}`.trim();
@@ -1289,12 +1438,12 @@ class ExpenseTracker {
       bar.className = "budget-progress-bar";
       const fill = document.createElement("div");
       fill.className = "budget-progress-fill";
-      fill.style.width = `${percentage}%`;
+      fill.style.width = progressState.fillWidth;
       bar.appendChild(fill);
 
       const amountSpan = document.createElement("span");
       amountSpan.className = "budget-amount";
-      amountSpan.textContent = `${this.formatCurrency(spent)} / ${this.formatCurrency(budgetAmount)}`;
+      amountSpan.textContent = `${this.formatCurrency(spent)} / ${this.formatCurrency(budgetAmount)} (${progressState.label})`;
 
       progress.appendChild(bar);
       progress.appendChild(amountSpan);
@@ -1316,6 +1465,12 @@ class ExpenseTracker {
   renderTrendsChart() {
     const canvas = document.getElementById("trendsChart");
     if (!canvas) return;
+
+    if (typeof Chart === "undefined") {
+      canvas.style.display = "none";
+      this.updateChartIconVisibility("trendsChart", "trendsChartIcon");
+      return;
+    }
 
     const monthlyData = {};
     this.getFilteredTransactions().forEach((transaction) => {
@@ -1500,6 +1655,7 @@ class ExpenseTracker {
     }));
     this.transactions.push(...imported);
     this.saveTransactions();
+    this.checkBudgetAlertsForTransactions(this.transactions, this.budgets, getBudgetPeriodRange(this.getFilterState()));
     this.render();
     this.toast(`${imported.length} transaction${imported.length === 1 ? "" : "s"} imported`, "success");
   }
@@ -1709,6 +1865,20 @@ function initializeApp() {
     app = new ExpenseTracker();
     window.app = app;
     window.ExpenseTracker = ExpenseTracker;
+
+    const target = window.location.hash;
+    if (target === "#import-entry-panel") app.setEntryMode("import");
+    const advancedTarget = document.querySelector(`#advanced-tools ${target}`);
+    if (advancedTarget) {
+      const tools = document.getElementById("advanced-tools");
+      const toggle = document.getElementById("advanced-toggle");
+      if (tools) tools.classList.remove("hidden");
+      if (toggle) {
+        toggle.setAttribute("aria-expanded", "true");
+        toggle.querySelector("span")?.replaceChildren(document.createTextNode("Hide Advanced Tools"));
+      }
+      advancedTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 }
 
@@ -1724,12 +1894,16 @@ if (typeof window !== "undefined") {
   window.calculateTotals = calculateTotals;
   window.getFilteredTransactions = getFilteredTransactions;
   window.getCategoryTotals = getCategoryTotals;
-  window.csvField = csvField;
-  window.parseCsv = parseCsv;
-  window.detectImportFormat = detectImportFormat;
-  window.normalizeImportedRows = normalizeImportedRows;
-  window.normalizeBackupData = normalizeBackupData;
-  window.capitalize = capitalize;
+    window.getBudgetPeriodRange = getBudgetPeriodRange;
+    window.getCategorySpendForPeriod = getCategorySpendForPeriod;
+    window.evaluateBudgetAlerts = evaluateBudgetAlerts;
+    window.getBudgetProgressState = getBudgetProgressState;
+    window.csvField = csvField;
+    window.parseCsv = parseCsv;
+    window.detectImportFormat = detectImportFormat;
+    window.normalizeImportedRows = normalizeImportedRows;
+    window.normalizeBackupData = normalizeBackupData;
+    window.capitalize = capitalize;
 }
 
 if (typeof module !== "undefined") {
@@ -1737,6 +1911,10 @@ if (typeof module !== "undefined") {
     calculateTotals,
     getFilteredTransactions,
     getCategoryTotals,
+    getBudgetPeriodRange,
+    getCategorySpendForPeriod,
+    evaluateBudgetAlerts,
+    getBudgetProgressState,
     csvField,
     parseCsv,
     detectImportFormat,

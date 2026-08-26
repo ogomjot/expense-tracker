@@ -149,7 +149,6 @@
       .feature-card,
       .mockup-tile,
       .trust-item,
-      .landing-toggle-track,
       .landing-toggle-thumb {
         transition-property: background-color, color, border-color, opacity, transform, box-shadow;
         transition-duration: 300ms;
@@ -159,82 +158,58 @@
       /* Landing page dark mode toggle switch */
       .landing-toggle {
         position: relative;
-        width: 56px;
-        height: 28px;
-        border: none;
-        background: transparent;
+        width: 48px;
+        height: 48px;
+        min-width: 48px;
+        border: 1px solid #c4c6cd;
+        background: #ffffff;
         cursor: pointer;
         padding: 0;
-        border-radius: 14px;
-      }
-
-      .landing-toggle-track {
-        position: absolute;
-        inset: 0;
-        display: block;
-        width: 100%;
-        height: 100%;
-        border-radius: 14px;
-        background: #eef2f5;
-        border: 2px solid #c4c6cd;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      }
-
-      .landing-toggle-track::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(135deg, #162839, #2c3e50);
-        opacity: 0;
-        transition: opacity 0.3s ease;
         border-radius: 12px;
+        color: #162839;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 2px rgba(22, 40, 57, 0.04);
+        transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
       }
 
-      .landing-toggle:hover .landing-toggle-track {
+      .landing-toggle:hover {
         border-color: #162839;
-        box-shadow: 0 0 0 4px rgba(22, 40, 57, 0.1);
-      }
-
-      .landing-toggle:hover .landing-toggle-track::before {
-        opacity: 0.08;
+        background: #f7f9fb;
+        box-shadow: 0 0 0 4px rgba(22, 40, 57, 0.08);
+        transform: translateY(-1px);
       }
 
       .landing-toggle-thumb {
-        position: absolute;
-        top: 2px;
-        left: 2px;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: #fff;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15), 0 0 0 2px rgba(22, 40, 57, 0.08);
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 11px;
+        background: transparent;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: 1;
+        transition: color 0.2s ease, transform 0.2s ease;
       }
 
       .landing-toggle-thumb svg {
-        transition: all 0.3s ease;
+        width: 22px;
+        height: 22px;
+        transition: color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
       }
 
       .landing-toggle-thumb .sun-icon {
-        color: #f59e0b;
+        color: #162839;
         transform: rotate(0deg) scale(1);
       }
 
       .landing-toggle-thumb .moon-icon {
-        color: #6366f1;
+        color: #d1e4fb;
         transform: rotate(-90deg) scale(0.8);
       }
 
       /* Dark mode active state */
-      .landing-toggle[aria-pressed="true"] .landing-toggle-thumb {
-        transform: translateX(32px);
-        box-shadow: 0 2px 8px rgba(123, 248, 161, 0.4), 0 0 0 2px rgba(123, 248, 161, 0.2);
-      }
-
       .landing-toggle[aria-pressed="true"] .landing-toggle-thumb .sun-icon {
         transform: rotate(90deg) scale(0.8);
         opacity: 0;
@@ -245,49 +220,42 @@
         opacity: 1;
       }
 
-      .landing-toggle[aria-pressed="true"] .landing-toggle-track {
-        background: #006d37;
+      html.dark .landing-toggle {
+        background: #1f2733;
         border-color: #7bf8a1;
+        color: #d1e4fb;
+      }
+
+      html.dark .landing-toggle:hover {
+        background: #262f3d;
         box-shadow: 0 0 0 4px rgba(123, 248, 161, 0.15);
       }
 
-      /* Dark mode (html.dark) styles */
-      html.dark .landing-toggle-track {
-        background: #2b3644;
-        border-color: #3a4453;
-      }
-
-      html.dark .landing-toggle:hover .landing-toggle-track {
-        border-color: #7bf8a1;
-        box-shadow: 0 0 0 4px rgba(123, 248, 161, 0.15);
-      }
-
-      html.dark .landing-toggle-thumb {
-        background: #f2f4f6;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(123, 248, 161, 0.1);
-      }
-
-      html.dark .landing-toggle[aria-pressed="true"] .landing-toggle-track {
-        background: #006d37;
-        border-color: #7bf8a1;
-      }
-
-      html.dark .landing-toggle[aria-pressed="true"] .landing-toggle-thumb {
-        box-shadow: 0 2px 8px rgba(123, 248, 161, 0.5), 0 0 0 2px rgba(123, 248, 161, 0.3);
+      html.dark .landing-toggle-thumb .sun-icon {
+        color: #d1e4fb;
       }
 
       /* Focus visible */
       .landing-toggle:focus-visible {
-        outline: none;
-      }
-
-      .landing-toggle:focus-visible .landing-toggle-track {
         outline: 2px solid #162839;
         outline-offset: 2px;
       }
 
-      html.dark .landing-toggle:focus-visible .landing-toggle-track {
+      html.dark .landing-toggle:focus-visible {
         outline-color: #b5c8df;
+      }
+
+      /* Keep every rectangular surface on the landing page softly rounded. */
+      button:not(.landing-toggle),
+      input,
+      select,
+      textarea,
+      .feature-card,
+      .mockup-tile,
+      .how-step,
+      .feature-modal-content,
+      .feature-modal-close {
+        border-radius: 10px;
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -296,7 +264,7 @@
         .budget-item, .transaction-item, .quick-filter-btn,
         .category-tag, .btn-edit, .btn-delete, .advanced-toggle,
         .summary-card, input, select, button, .brick,
-        .hicon svg, .chart-icon, .landing-toggle-track,
+        .hicon svg, .chart-icon,
         .landing-toggle-thumb, .landing-toggle-thumb svg {
           animation: none !important;
           transition: none !important;
@@ -340,11 +308,10 @@
             aria-label="Toggle dark mode"
             class="landing-toggle group relative inline-flex items-center"
           >
-            <span class="landing-toggle-track"></span>
             <span class="landing-toggle-thumb">
               <svg class="sun-icon" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="10" cy="10" r="5" />
-                <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.93 4.93l1.41 1.41M13.66 13.66l1.41 1.41M2 13.66l1.41-1.41M13.66 4.93l1.41-1.41" />
+                <circle cx="10" cy="10" r="3.2" />
+                <path d="M10 1.5v3M10 15.5v3M19 10h-3M4 10H1M16.6 3.4l-2.1 2.1M5.5 14.5l-2.1 2.1M16.6 16.6l-2.1-2.1M5.5 5.5 3.4 3.4" />
               </svg>
               <svg class="moon-icon hidden" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M17.79 10.79A7 7 0 1 1 9.21 2 5 5 0 0 0 17.79 10.79z" />
@@ -380,6 +347,15 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </a>
+          </div>
+          <div class="landing-action-grid" aria-label="Expense tracker tools">
+            <a class="landing-action-button" href="main.html#expense-form-section">Add Transaction</a>
+            <a class="landing-action-button" href="main.html#import-entry-panel">Import Statement</a>
+            <a class="landing-action-button" href="main.html#category-section">Categories</a>
+            <a class="landing-action-button" href="main.html#budget-section">Budgets</a>
+            <a class="landing-action-button" href="main.html#filter-section">Filters</a>
+            <a class="landing-action-button" href="main.html#expense-chart-section">Charts</a>
+            <a class="landing-action-button" href="main.html#transactions-section">Transactions</a>
           </div>
         </div>
         <!-- main Mockup (illustrative only — real app lives at main.html) -->
@@ -430,7 +406,7 @@
       <section id="features-section" class="bg-surface-container-low dark:bg-[#101418] py-section-padding">
         <div class="max-w-container-max mx-auto px-margin-desktop">
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-gutter">
-            <div class="feature-card bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+            <button type="button" class="feature-card feature-card-button bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100" data-feature="tracking" aria-controls="feature-modal">
               <div class="w-12 h-12 bg-primary-fixed rounded-lg flex items-center justify-center text-primary mb-stack-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
                 <span class="hicon hicon-pencil">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -441,8 +417,8 @@
               </div>
               <h3 class="feature-card-title font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] mb-2 text-[20px] leading-tight">Track Income &amp; Expenses</h3>
               <p class="feature-card-copy text-on-surface-variant dark:text-[#a6adb5] text-sm mt-2">Log transactions in seconds, with editable entries and categories.</p>
-            </div>
-            <div class="feature-card bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+            </button>
+            <button type="button" class="feature-card feature-card-button bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100" data-feature="breakdown" aria-controls="feature-modal">
               <div class="w-12 h-12 bg-primary-fixed rounded-lg flex items-center justify-center text-primary mb-stack-sm group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300">
                 <span class="hicon hicon-pie">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
@@ -454,8 +430,8 @@
               </div>
               <h3 class="feature-card-title font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] mb-2 text-[20px] leading-tight">Visual Category Breakdown</h3>
               <p class="feature-card-copy text-on-surface-variant dark:text-[#a6adb5] text-sm mt-2">See exactly where your money is going.</p>
-            </div>
-            <div class="feature-card bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+            </button>
+            <button type="button" class="feature-card feature-card-button bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100" data-feature="trends" aria-controls="feature-modal">
               <div class="w-12 h-12 bg-primary-fixed rounded-lg flex items-center justify-center text-primary mb-stack-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
                 <span class="hicon hicon-trend">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -466,8 +442,8 @@
               </div>
               <h3 class="feature-card-title font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] mb-2 text-[20px] leading-tight">Monthly Trends</h3>
               <p class="feature-card-copy text-on-surface-variant dark:text-[#a6adb5] text-sm mt-2">Monitor your spending habits over time.</p>
-            </div>
-            <div class="feature-card bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+            </button>
+            <button type="button" class="feature-card feature-card-button bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100" data-feature="budgets" aria-controls="feature-modal">
               <div class="w-12 h-12 bg-primary-fixed rounded-lg flex items-center justify-center text-primary mb-stack-sm group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300">
                 <span class="hicon hicon-shield">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -478,10 +454,33 @@
               </div>
               <h3 class="feature-card-title font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] mb-2 text-[20px] leading-tight">Budgets, Backup &amp; CSV Export</h3>
               <p class="feature-card-copy text-on-surface-variant dark:text-[#a6adb5] text-sm mt-2">Set spending limits and keep your data portable.</p>
-            </div>
+            </button>
+            <a href="main.html#import-entry-panel" class="feature-card bg-surface-container-lowest dark:bg-[#1a2029] rounded-xl p-stack-md border border-outline-variant dark:border-[#333c48] shadow-sm hover:shadow-xl hover:-translate-y-1 hover:border-primary/30 transition-all duration-300 relative overflow-hidden group before:absolute before:inset-0 before:bg-gradient-to-r before:from-primary/5 before:to-transparent before:opacity-0 before:transition-opacity before:duration-300 hover:before:opacity-100">
+              <div class="w-12 h-12 bg-primary-fixed rounded-lg flex items-center justify-center text-primary mb-stack-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                <span class="hicon">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3v12" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M5 21h14" />
+                  </svg>
+                </span>
+              </div>
+              <h3 class="feature-card-title font-headline-sm text-headline-sm text-primary dark:text-[#d1e4fb] mb-2 text-[20px] leading-tight">Import Statements</h3>
+              <p class="feature-card-copy text-on-surface-variant dark:text-[#a6adb5] text-sm mt-2">Bring in UPI or bank CSVs with a review before saving.</p>
+            </a>
           </div>
         </div>
       </section>
+
+      <div id="feature-modal" class="feature-modal" role="dialog" aria-modal="true" aria-labelledby="feature-modal-title" hidden>
+        <div class="feature-modal-backdrop" data-modal-dismiss="true"></div>
+        <div class="feature-modal-content" role="document">
+          <button id="feature-modal-close" class="feature-modal-close" type="button" aria-label="Close feature details">×</button>
+          <div id="feature-modal-icon" class="feature-modal-icon" aria-hidden="true"></div>
+          <h2 id="feature-modal-title"></h2>
+          <p id="feature-modal-description"></p>
+        </div>
+      </div>
 
       <!-- How It Works -->
       <section id="how-it-works" class="max-w-container-max mx-auto px-margin-desktop py-section-padding">
@@ -566,6 +565,62 @@
     <script src="scroll-fx.js"></script>
     <script>
       (function () {
+        const featureDetails = {
+          tracking: {
+            title: "Track Income & Expenses",
+            description: "Add income and expenses in seconds with a clear type, category, description, amount, and date. Edit or delete entries later, then use the running totals and transaction list to understand your current position.",
+          },
+          breakdown: {
+            title: "Visual Category Breakdown",
+            description: "See your spending and income grouped by category in easy-to-scan charts. This makes recurring patterns visible so you can spot the areas that deserve attention without sorting through every transaction.",
+          },
+          trends: {
+            title: "Monthly Trends",
+            description: "Compare monthly income and expenses in one view. The trends chart helps you notice changes over time and gives your day-to-day entries a useful longer-term context.",
+          },
+          budgets: {
+            title: "Budgets, Backup & CSV Export",
+            description: "Set category budgets and watch progress toward each limit, with warnings as spending gets close. Export transactions to CSV or create a JSON backup so your data stays portable and under your control.",
+          },
+        };
+        const modal = document.getElementById("feature-modal");
+        const modalTitle = document.getElementById("feature-modal-title");
+        const modalDescription = document.getElementById("feature-modal-description");
+        const modalIcon = document.getElementById("feature-modal-icon");
+        const closeButton = document.getElementById("feature-modal-close");
+        let lastTrigger = null;
+
+        function closeFeatureModal() {
+          if (!modal || modal.hidden) return;
+          modal.hidden = true;
+          document.body.classList.remove("feature-modal-open");
+          if (lastTrigger) lastTrigger.focus();
+        }
+
+        document.querySelectorAll(".feature-card-button").forEach((card) => {
+          card.addEventListener("click", () => {
+            const detail = featureDetails[card.dataset.feature];
+            if (!detail || !modal) return;
+            lastTrigger = card;
+            modalTitle.textContent = detail.title;
+            modalDescription.textContent = detail.description;
+            modalIcon.replaceChildren(card.querySelector("svg").cloneNode(true));
+            modal.hidden = false;
+            document.body.classList.add("feature-modal-open");
+            closeButton.focus();
+          });
+        });
+
+        if (closeButton) closeButton.addEventListener("click", closeFeatureModal);
+        if (modal) {
+          modal.addEventListener("click", (event) => {
+            if (event.target.dataset.modalDismiss === "true") closeFeatureModal();
+          });
+        }
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") closeFeatureModal();
+        });
+
         const prefersReducedMotion = window.matchMedia(
           "(prefers-reduced-motion: reduce)",
         ).matches;

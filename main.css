@@ -1024,6 +1024,8 @@ html.dark .collapse-btn:active {
 #expense-form select,
 #new-category-input,
 #category-type-select,
+#filter-category,
+#filter-search,
 #budget-category,
 #budget-amount,
 #filter-type,
@@ -1065,10 +1067,46 @@ html.dark .collapse-btn:active {
   border-radius: 12px;
 }
 
+.dashboard-shell button:not(.collapse-btn),
+.dashboard-shell input,
+.dashboard-shell select,
+.dashboard-shell .brick,
+.dashboard-shell .summary-card,
+.dashboard-shell .transaction-item,
+.dashboard-shell .budget-item,
+.dashboard-shell .category-tag,
+.dashboard-shell .import-drop-zone,
+.dashboard-shell .import-mapping-panel,
+.dashboard-shell .import-preview-panel {
+  border-radius: 10px;
+}
+
+#filter-category,
+#filter-search {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #c4c6cd;
+  border-radius: 10px;
+  background-color: #ffffff;
+  box-sizing: border-box;
+}
+
+html.dark #filter-category,
+html.dark #filter-search {
+  background-color: #1f2733;
+  border-color: #3a4453;
+}
+
+.filter-field {
+  border-radius: 10px !important;
+}
+
 #expense-form input:hover,
 #expense-form select:hover,
 #new-category-input:hover,
 #category-type-select:hover,
+#filter-category:hover,
+#filter-search:hover,
 #budget-category:hover,
 #budget-amount:hover,
 #filter-type:hover,
@@ -1084,6 +1122,8 @@ html.dark #expense-form input,
 html.dark #expense-form select,
 html.dark #new-category-input,
 html.dark #category-type-select,
+html.dark #filter-category,
+html.dark #filter-search,
 html.dark #budget-category,
 html.dark #budget-amount,
 html.dark #filter-type,
@@ -1098,6 +1138,8 @@ html.dark #expense-form input:hover,
 html.dark #expense-form select:hover,
 html.dark #new-category-input:hover,
 html.dark #category-type-select:hover,
+html.dark #filter-category:hover,
+html.dark #filter-search:hover,
 html.dark #budget-category:hover,
 html.dark #budget-amount:hover,
 html.dark #filter-type:hover,
@@ -1112,6 +1154,8 @@ html.dark #filter-date-to:hover {
 #expense-form select:focus,
 #new-category-input:focus,
 #category-type-select:focus,
+#filter-category:focus,
+#filter-search:focus,
 #budget-category:focus,
 #budget-amount:focus,
 #filter-type:focus,
@@ -1127,6 +1171,8 @@ html.dark #expense-form input:focus,
 html.dark #expense-form select:focus,
 html.dark #new-category-input:focus,
 html.dark #category-type-select:focus,
+html.dark #filter-category:focus,
+html.dark #filter-search:focus,
 html.dark #budget-category:focus,
 html.dark #budget-amount:focus,
 html.dark #filter-type:focus,
@@ -1260,11 +1306,11 @@ html.dark .transactions-empty-state {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px;
+  padding: 10px 12px;
   background-color: #f8f9fa;
   border-radius: 6px;
   border-left: 4px solid #3498db;
-  transition: all 0.3s ease;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, border-left-width 0.2s ease;
   position: relative;
   overflow: hidden;
 }
@@ -1279,9 +1325,9 @@ html.dark .transactions-empty-state {
 }
 
 .budget-item:hover {
-  transform: translateX(8px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-  border-left-width: 6px;
+  transform: translateX(4px);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+  border-left-width: 5px;
 }
 
 .budget-item:hover::before {
@@ -1334,6 +1380,12 @@ html.dark .budget-item.exceeded {
   font-weight: 600;
   color: #2c3e50;
   margin-bottom: 4px;
+}
+
+.budget-category {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 6px;
 }
 
 html.dark .budget-category {
@@ -1899,10 +1951,10 @@ html.dark .import-drop-zone:focus-within {
 .toast {
   background: #162839;
   color: #fff;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-radius: 10px;
-  font-size: 0.9rem;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  font-size: 0.875rem;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
   opacity: 0;
   transform: translateY(8px);
   transition:
@@ -1916,13 +1968,19 @@ html.dark .import-drop-zone:focus-within {
 }
 
 .toast-success {
-  background: #1e7b45;
+  background: #1f7a46;
 }
 .toast-error {
-  background: #a5342b;
+  background: #a6332d;
 }
 .toast-info {
   background: #162839;
+}
+.toast-warning {
+  background: #b77712;
+}
+.toast-alert {
+  background: #ad2c2c;
 }
 
 #dark-mode-toggle {
@@ -2090,8 +2148,185 @@ html.dark #dark-mode-toggle:focus-visible {
   box-shadow: 0 8px 20px rgba(0, 109, 55, 0.2);
 }
 
+.landing-action-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.landing-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #c4c6cd;
+  border-radius: 9px;
+  background: #fff;
+  color: #162839;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.landing-action-button:hover {
+  border-color: #162839;
+  background: #eef2f5;
+  transform: translateY(-1px);
+}
+
+html.dark .landing-action-button {
+  border-color: #3a4453;
+  background: #1f2733;
+  color: #d1e4fb;
+}
+
+html.dark .landing-action-button:hover {
+  border-color: #7bf8a1;
+  background: #262f3d;
+}
+
+.settings-row select {
+  min-width: 112px;
+  min-height: 40px;
+  padding: 8px 28px 8px 10px;
+  font: inherit;
+  line-height: 1.2;
+}
+
+.settings-toggle-row,
+.settings-button,
+.entry-mode-tab,
+.import-csv-btn,
+.import-mapping-panel button,
+.import-preview-panel button {
+  min-height: 40px;
+}
+
 .feature-card-title {
   min-height: 2.25em;
+}
+
+.feature-card-button {
+  display: block;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feature-modal-open {
+  overflow: hidden;
+}
+
+.feature-modal[hidden] {
+  display: none;
+}
+
+.feature-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.feature-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(9, 29, 46, 0.62);
+}
+
+.feature-modal-content {
+  position: relative;
+  width: min(100%, 560px);
+  padding: 32px;
+  border: 1px solid #c4c6cd;
+  border-radius: 14px;
+  background: #fff;
+  color: #191c1e;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.feature-modal-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  background: #d1e4fb;
+  color: #162839;
+}
+
+.feature-modal-icon svg {
+  width: 38px;
+  height: 38px;
+}
+
+.feature-modal-content h2 {
+  margin: 0 42px 12px 0;
+  color: #162839;
+  font-family: "Manrope", sans-serif;
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+.feature-modal-content p {
+  margin: 0;
+  color: #43474c;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.feature-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #c4c6cd;
+  border-radius: 9px;
+  background: #f2f4f6;
+  color: #162839;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.feature-modal-close:hover {
+  background: #e0e3e5;
+  transform: scale(1.05);
+}
+
+html.dark .feature-modal-content {
+  border-color: #3a4453;
+  background: #1a2029;
+  color: #e0e3e5;
+}
+
+html.dark .feature-modal-icon {
+  background: #2b3644;
+  color: #7bf8a1;
+}
+
+html.dark .feature-modal-content h2 {
+  color: #d1e4fb;
+}
+
+html.dark .feature-modal-content p {
+  color: #c4c6cd;
+}
+
+html.dark .feature-modal-close {
+  border-color: #3a4453;
+  background: #232c39;
+  color: #d1e4fb;
 }
 
 .feature-card-copy {
