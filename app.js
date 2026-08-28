@@ -24,8 +24,15 @@ function safeWriteStorage(key, value) {
     localStorage.setItem(key, value);
   } catch (error) {
     console.warn(`Could not save localStorage key "${key}":`, error);
-    if (typeof window !== "undefined" && window.app && typeof window.app.toast === "function") {
-      window.app.toast("Couldn't save — your browser's storage may be full or disabled", "error");
+    if (
+      typeof window !== "undefined" &&
+      window.app &&
+      typeof window.app.toast === "function"
+    ) {
+      window.app.toast(
+        "Couldn't save — your browser's storage may be full or disabled",
+        "error",
+      );
     }
   }
 }
@@ -35,8 +42,15 @@ function safeWriteJson(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.warn(`Could not save localStorage key "${key}":`, error);
-    if (typeof window !== "undefined" && window.app && typeof window.app.toast === "function") {
-      window.app.toast("Couldn't save — your browser's storage may be full or disabled", "error");
+    if (
+      typeof window !== "undefined" &&
+      window.app &&
+      typeof window.app.toast === "function"
+    ) {
+      window.app.toast(
+        "Couldn't save — your browser's storage may be full or disabled",
+        "error",
+      );
     }
   }
 }
@@ -50,28 +64,39 @@ function capitalize(str) {
 function getFilteredTransactions(transactions, filterState = {}) {
   const type = filterState.type || "";
   const category = filterState.category || "";
-  const search = String(filterState.search || "").trim().toLowerCase();
+  const search = String(filterState.search || "")
+    .trim()
+    .toLowerCase();
   const dateFrom = filterState.dateFrom || "";
   const dateTo = filterState.dateTo || "";
 
   return (transactions || []).filter((transaction) => {
     const typeMatch = !type || transaction.type === type;
     const categoryMatch = !category || transaction.category === category;
-    const searchMatch = !search || String(transaction.description || "").toLowerCase().includes(search);
+    const searchMatch =
+      !search ||
+      String(transaction.description || "")
+        .toLowerCase()
+        .includes(search);
     const dateFromMatch = !dateFrom || transaction.date >= dateFrom;
     const dateToMatch = !dateTo || transaction.date <= dateTo;
-    return typeMatch && categoryMatch && searchMatch && dateFromMatch && dateToMatch;
+    return (
+      typeMatch && categoryMatch && searchMatch && dateFromMatch && dateToMatch
+    );
   });
 }
 
 function calculateTotals(transactions, useFiltered = false, filterState = {}) {
-  const source = useFiltered ? getFilteredTransactions(transactions, filterState) : transactions || [];
+  const source = useFiltered
+    ? getFilteredTransactions(transactions, filterState)
+    : transactions || [];
   let totalIncome = 0;
   let totalExpenses = 0;
 
   source.forEach((transaction) => {
     if (transaction.type === "income") totalIncome += transaction.amount;
-    else if (transaction.type === "expense") totalExpenses += transaction.amount;
+    else if (transaction.type === "expense")
+      totalExpenses += transaction.amount;
   });
 
   return {
@@ -119,7 +144,13 @@ function getBudgetPeriodRange(filterState = {}, now = new Date()) {
   };
 }
 
-function getCategorySpendForPeriod(transactions, category, filterState = {}, now = new Date()) {
+function getCategorySpendForPeriod(
+  transactions,
+  category,
+  filterState = {},
+  now = new Date(),
+  amountResolver = null,
+) {
   const period = getBudgetPeriodRange(filterState, now);
   const categoryName = String(category || "");
 
@@ -127,8 +158,12 @@ function getCategorySpendForPeriod(transactions, category, filterState = {}, now
     if (transaction.type !== "expense") return sum;
     if (transaction.category !== categoryName) return sum;
     if (!transaction.date) return sum;
-    if (transaction.date < period.dateFrom || transaction.date > period.dateTo) return sum;
-    return sum + Number(transaction.amount || 0);
+    if (period.dateFrom && transaction.date < period.dateFrom) return sum;
+    if (period.dateTo && transaction.date > period.dateTo) return sum;
+    const amount = amountResolver
+      ? amountResolver(transaction)
+      : Number(transaction.amount || 0);
+    return Number.isFinite(amount) ? sum + amount : sum;
   }, 0);
 }
 
@@ -181,14 +216,48 @@ function convertAmount(amount, rate) {
 
 const DEFAULT_CURRENCY = "USD";
 const EXCHANGE_RATE_CACHE_TTL = 60 * 60 * 1000;
+const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+const MAX_BACKUP_TRANSACTIONS = 5000;
+const MAX_BACKUP_CATEGORIES = 100;
+const MAX_BACKUP_CATEGORY_LENGTH = 40;
 const SUPPORTED_CURRENCIES = new Set([
-  "AUD", "BGN", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "GBP",
-  "HKD", "HUF", "IDR", "ILS", "INR", "ISK", "JPY", "KRW", "MXN", "MYR",
-  "NOK", "NZD", "PHP", "PLN", "RON", "SEK", "SGD", "THB", "TRY", "USD", "ZAR",
+  "AUD",
+  "BGN",
+  "BRL",
+  "CAD",
+  "CHF",
+  "CNY",
+  "CZK",
+  "DKK",
+  "EUR",
+  "GBP",
+  "HKD",
+  "HUF",
+  "IDR",
+  "ILS",
+  "INR",
+  "ISK",
+  "JPY",
+  "KRW",
+  "MXN",
+  "MYR",
+  "NOK",
+  "NZD",
+  "PHP",
+  "PLN",
+  "RON",
+  "SEK",
+  "SGD",
+  "THB",
+  "TRY",
+  "USD",
+  "ZAR",
 ]);
 
 function normalizeCurrencyCode(value, fallback = DEFAULT_CURRENCY) {
-  const code = String(value || "").trim().toUpperCase();
+  const code = String(value || "")
+    .trim()
+    .toUpperCase();
   return SUPPORTED_CURRENCIES.has(code) ? code : fallback;
 }
 
@@ -199,34 +268,72 @@ function getTransactionCurrency(transaction, fallback = DEFAULT_CURRENCY) {
 function getDisplayAmount(amount, sourceCurrency, targetCurrency, rate) {
   const source = normalizeCurrencyCode(sourceCurrency);
   const target = normalizeCurrencyCode(targetCurrency);
-  if (source === target) return { amount: Number(amount), currency: target, converted: true };
-  if (rate === null || rate === undefined || !Number.isFinite(Number(rate))) {
+  if (source === target)
+    return { amount: Number(amount), currency: target, converted: true };
+  if (
+    rate === null ||
+    rate === undefined ||
+    !Number.isFinite(Number(rate)) ||
+    Number(rate) <= 0
+  ) {
     return { amount: Number(amount), currency: source, converted: false };
   }
-  return { amount: convertAmount(amount, rate), currency: target, converted: true };
+  return {
+    amount: convertAmount(amount, rate),
+    currency: target,
+    converted: true,
+  };
 }
 
 function getDisplayTransactions(transactions, targetCurrency, rateResolver) {
   return (transactions || []).map((transaction) => {
     const sourceCurrency = getTransactionCurrency(transaction);
-    const rate = sourceCurrency === normalizeCurrencyCode(targetCurrency)
-      ? 1
-      : rateResolver(sourceCurrency, targetCurrency);
-    const display = getDisplayAmount(transaction.amount, sourceCurrency, targetCurrency, rate);
-    return { ...transaction, displayAmount: display.amount, displayCurrency: display.currency };
+    const rate =
+      sourceCurrency === normalizeCurrencyCode(targetCurrency)
+        ? 1
+        : rateResolver(sourceCurrency, targetCurrency);
+    const display = getDisplayAmount(
+      transaction.amount,
+      sourceCurrency,
+      targetCurrency,
+      rate,
+    );
+    return {
+      ...transaction,
+      displayAmount: display.amount,
+      displayCurrency: display.currency,
+    };
   });
 }
 
-function evaluateBudgetAlerts(transactions, budgets, filterState = {}, alertState = {}) {
+function evaluateBudgetAlerts(
+  transactions,
+  budgets,
+  filterState = {},
+  alertState = {},
+  amountResolver = null,
+) {
   const period = getBudgetPeriodRange(filterState);
   const triggered = [];
 
   Object.entries(budgets || {}).forEach(([category, budget]) => {
     const numericBudget = Number(budget);
-    if (!category || !Number.isFinite(numericBudget) || numericBudget <= 0) return;
+    if (!category || !Number.isFinite(numericBudget) || numericBudget <= 0)
+      return;
 
-    const spend = getCategorySpendForPeriod(transactions, category, period);
-    const categoryState = alertState[category] || { warning: false, alert: false };
+    const spend = getCategorySpendForPeriod(
+      transactions,
+      category,
+      period,
+      new Date(),
+      amountResolver
+        ? (transaction) => amountResolver(transaction, category)
+        : undefined,
+    );
+    const categoryState = alertState[category] || {
+      warning: false,
+      alert: false,
+    };
     const percent = (spend / numericBudget) * 100;
 
     if (spend >= numericBudget && !categoryState.alert) {
@@ -239,7 +346,11 @@ function evaluateBudgetAlerts(transactions, budgets, filterState = {}, alertStat
         spend,
         budget: numericBudget,
       });
-    } else if (spend >= numericBudget * 0.8 && spend < numericBudget && !categoryState.warning) {
+    } else if (
+      spend >= numericBudget * 0.8 &&
+      spend < numericBudget &&
+      !categoryState.warning
+    ) {
       categoryState.warning = true;
       triggered.push({
         category,
@@ -302,27 +413,70 @@ function parseCsv(text) {
   if (rows.length === 0) throw new Error("The CSV is empty");
 
   const headers = rows[0].map((header) => header.trim().replace(/^\uFEFF/, ""));
-  return { headers, rows: rows.slice(1).map((values) =>
-    headers.map((_, index) => String(values[index] || "").trim()),
-  ) };
+  return {
+    headers,
+    rows: rows
+      .slice(1)
+      .map((values) =>
+        headers.map((_, index) => String(values[index] || "").trim()),
+      ),
+  };
 }
 
 function normalizedHeader(header) {
-  return String(header).toLowerCase().replace(/[^a-z0-9]/g, "");
+  return String(header)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 }
 
 function findColumn(headers, aliases) {
   const normalized = headers.map(normalizedHeader);
-  return normalized.findIndex((header) => aliases.some((alias) => header === alias || header.includes(alias)));
+  return normalized.findIndex((header) =>
+    aliases.some((alias) => header === alias || header.includes(alias)),
+  );
 }
 
 function detectImportFormat(headers) {
-  const date = findColumn(headers, ["date", "transactiondate", "valuedate", "txndate"]);
-  const description = findColumn(headers, ["description", "narration", "transactiondetails", "details", "remarks", "particulars", "merchant", "name"]);
-  const amount = findColumn(headers, ["amount", "transactionamount", "withdrawalamount", "depositamount"]);
-  const debit = findColumn(headers, ["debit", "debitamount", "withdrawal", "withdrawals"]);
-  const credit = findColumn(headers, ["credit", "creditamount", "deposit", "deposits"]);
-  const type = findColumn(headers, ["type", "transactiontype", "transactioncategory", "drcr"]);
+  const date = findColumn(headers, [
+    "date",
+    "transactiondate",
+    "valuedate",
+    "txndate",
+  ]);
+  const description = findColumn(headers, [
+    "description",
+    "narration",
+    "transactiondetails",
+    "details",
+    "remarks",
+    "particulars",
+    "merchant",
+    "name",
+  ]);
+  const amount = findColumn(headers, [
+    "amount",
+    "transactionamount",
+    "withdrawalamount",
+    "depositamount",
+  ]);
+  const debit = findColumn(headers, [
+    "debit",
+    "debitamount",
+    "withdrawal",
+    "withdrawals",
+  ]);
+  const credit = findColumn(headers, [
+    "credit",
+    "creditamount",
+    "deposit",
+    "deposits",
+  ]);
+  const type = findColumn(headers, [
+    "type",
+    "transactiontype",
+    "transactioncategory",
+    "drcr",
+  ]);
   const currency = findColumn(headers, ["currency", "currencycode", "ccy"]);
 
   if (date === -1 || description === -1) return null;
@@ -332,7 +486,8 @@ function detectImportFormat(headers) {
   if (amount !== -1 && type !== -1) {
     return { source: "upi", date, description, amount, type, currency };
   }
-  if (amount !== -1) return { source: "upi", date, description, amount, type: -1, currency };
+  if (amount !== -1)
+    return { source: "upi", date, description, amount, type: -1, currency };
   return null;
 }
 
@@ -356,7 +511,9 @@ function normalizeImportDate(value) {
   if (!match) match = input.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
   if (!match) return "";
 
-  let year; let month; let day;
+  let year;
+  let month;
+  let day;
   if (match[1].length === 4) {
     [, year, month, day] = match;
   } else {
@@ -367,8 +524,64 @@ function normalizeImportDate(value) {
     day = String(first > 12 ? first : second);
   }
   const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
-  if (date.getUTCFullYear() !== Number(year) || date.getUTCMonth() !== Number(month) - 1 || date.getUTCDate() !== Number(day)) return "";
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day)
+  )
+    return "";
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function isValidStoredDate(value) {
+  const date = String(value || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  return normalizeImportDate(date) === date;
+}
+
+function normalizeStoredTransactions(data, defaultCurrency = DEFAULT_CURRENCY) {
+  if (!Array.isArray(data)) return [];
+
+  return data
+    .filter(
+      (transaction) =>
+        transaction &&
+        (transaction.type === "income" || transaction.type === "expense") &&
+        isValidStoredDate(transaction.date) &&
+        Number.isFinite(Number(transaction.amount)) &&
+        Number(transaction.amount) > 0,
+    )
+    .map((transaction) => ({
+      ...transaction,
+      amount: Number(transaction.amount),
+      currency: normalizeCurrencyCode(transaction.currency, defaultCurrency),
+    }));
+}
+
+function normalizeStoredBudgets(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(
+        ([category, amount]) =>
+          typeof category === "string" &&
+          category.length <= MAX_BACKUP_CATEGORY_LENGTH &&
+          Number.isFinite(Number(amount)) &&
+          Number(amount) > 0,
+      )
+      .slice(0, MAX_BACKUP_CATEGORIES)
+      .map(([category, amount]) => [category, Number(amount)]),
+  );
+}
+
+function normalizeStoredCategories(data) {
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter((category) => typeof category === "string" && category.trim())
+    .map((category) => category.trim().slice(0, MAX_BACKUP_CATEGORY_LENGTH))
+    .filter((category, index, categories) => categories.indexOf(category) === index)
+    .slice(0, MAX_BACKUP_CATEGORIES);
 }
 
 function safeImportedText(value) {
@@ -376,33 +589,64 @@ function safeImportedText(value) {
   return /^[=+\-@]/.test(text) ? `'${text}` : text;
 }
 
-function normalizeImportedRows(parsed, mapping, defaultCurrency = DEFAULT_CURRENCY) {
-  return parsed.rows.map((row) => {
-    const date = normalizeImportDate(row[mapping.date]);
-    const description = safeImportedText(row[mapping.description]);
-    let type = mapping.type === -1 ? "" : String(row[mapping.type] || "").toLowerCase();
-    let amount = normalizeAmount(row[mapping.amount]);
-    const currencyIndex = Number.isInteger(mapping.currency) ? mapping.currency : -1;
-    const currency = currencyIndex === -1
-      ? normalizeCurrencyCode(defaultCurrency)
-      : normalizeCurrencyCode(row[currencyIndex], defaultCurrency);
+function normalizeImportedRows(
+  parsed,
+  mapping,
+  defaultCurrency = DEFAULT_CURRENCY,
+) {
+  return parsed.rows
+    .map((row) => {
+      const date = normalizeImportDate(row[mapping.date]);
+      const description = safeImportedText(row[mapping.description]);
+      let type =
+        mapping.type === -1
+          ? ""
+          : String(row[mapping.type] || "").toLowerCase();
+      let amount = normalizeAmount(row[mapping.amount]);
+      const currencyIndex = Number.isInteger(mapping.currency)
+        ? mapping.currency
+        : -1;
+      const currency =
+        currencyIndex === -1
+          ? normalizeCurrencyCode(defaultCurrency)
+          : normalizeCurrencyCode(row[currencyIndex], defaultCurrency);
 
-    if (mapping.debit !== -1 || mapping.credit !== -1) {
-      const debit = mapping.debit === -1 ? NaN : normalizeAmount(row[mapping.debit]);
-      const credit = mapping.credit === -1 ? NaN : normalizeAmount(row[mapping.credit]);
-      if (Number.isFinite(debit) && debit > 0) { amount = debit; type = "expense"; }
-      else if (Number.isFinite(credit) && credit > 0) { amount = credit; type = "income"; }
-    } else {
-      const rawAmount = String(row[mapping.amount] || "").trim();
-      type = mapping.type === -1
-        ? (rawAmount.startsWith("-") ? "expense" : "income")
-        : (/debit|withdraw|expense|dr|payment|sent/.test(type) ? "expense" : "income");
-    }
+      if (mapping.debit !== -1 || mapping.credit !== -1) {
+        const debit =
+          mapping.debit === -1 ? NaN : normalizeAmount(row[mapping.debit]);
+        const credit =
+          mapping.credit === -1 ? NaN : normalizeAmount(row[mapping.credit]);
+        if (Number.isFinite(debit) && debit > 0) {
+          amount = debit;
+          type = "expense";
+        } else if (Number.isFinite(credit) && credit > 0) {
+          amount = credit;
+          type = "income";
+        }
+      } else {
+        const rawAmount = String(row[mapping.amount] || "").trim();
+        type =
+          mapping.type === -1
+            ? rawAmount.startsWith("-")
+              ? "expense"
+              : "income"
+            : /debit|withdraw|expense|dr|payment|sent/.test(type)
+              ? "expense"
+              : "income";
+      }
 
-    return date && description && Number.isFinite(amount) && amount > 0
-      ? { date, type, category: type === "income" ? "other" : "other", description, amount, currency }
-      : null;
-  }).filter(Boolean);
+      return date && description && Number.isFinite(amount) && amount > 0
+        ? {
+            date,
+            type,
+            category: type === "income" ? "other" : "other",
+            description,
+            amount,
+            currency,
+          }
+        : null;
+    })
+    .filter(Boolean);
 }
 
 function normalizeBackupData(data) {
@@ -410,40 +654,57 @@ function normalizeBackupData(data) {
     throw new Error("Backup data must be an object");
   }
 
-  const safeTransactions = Array.isArray(data.transactions) ? data.transactions : [];
+  const safeTransactions = Array.isArray(data.transactions)
+    ? data.transactions
+    : [];
   if (!Array.isArray(data.transactions)) {
     throw new Error("transactions must be an array");
   }
+  if (safeTransactions.length > MAX_BACKUP_TRANSACTIONS) {
+    throw new Error("Backup contains too many transactions");
+  }
 
-  const importedCats = data.customCategories && typeof data.customCategories === "object"
-    ? data.customCategories
-    : {};
+  const importedCats =
+    data.customCategories && typeof data.customCategories === "object"
+      ? data.customCategories
+      : {};
 
   const normalized = {
     version: data.version ?? 1,
     exportedAt: data.exportedAt ?? new Date().toISOString(),
     transactions: safeTransactions
-      .filter((transaction) =>
-        transaction &&
-        (transaction.type === "income" || transaction.type === "expense") &&
-        typeof transaction.date === "string" &&
-        /^\d{4}-\d{2}-\d{2}$/.test(transaction.date) &&
-        Number.isFinite(Number(transaction.amount)) &&
-        Number(transaction.amount) > 0,
+      .filter(
+        (transaction) =>
+          transaction &&
+          (transaction.type === "income" || transaction.type === "expense") &&
+          typeof transaction.date === "string" &&
+          isValidStoredDate(transaction.date) &&
+          Number.isFinite(Number(transaction.amount)) &&
+          Number(transaction.amount) > 0,
       )
-      .map((transaction) => ({ ...transaction, amount: Number(transaction.amount) })),
+      .map((transaction) => ({
+        ...transaction,
+        amount: Number(transaction.amount),
+      })),
     customCategories: {
-      expense: Array.isArray(importedCats.expense) ? importedCats.expense : [],
-      income: Array.isArray(importedCats.income) ? importedCats.income : [],
+      expense: normalizeStoredCategories(importedCats.expense),
+      income: normalizeStoredCategories(importedCats.income),
     },
-    budgets: data.budgets && typeof data.budgets === "object" && !Array.isArray(data.budgets)
-      ? data.budgets
-      : {},
-    currency: data.currency || "USD",
+    budgets:
+      normalizeStoredBudgets(data.budgets),
+    currency: normalizeCurrencyCode(data.currency),
   };
 
-  if (data.budgetCurrencies && typeof data.budgetCurrencies === "object" && !Array.isArray(data.budgetCurrencies)) {
-    normalized.budgetCurrencies = data.budgetCurrencies;
+  if (
+    data.budgetCurrencies &&
+    typeof data.budgetCurrencies === "object" &&
+    !Array.isArray(data.budgetCurrencies)
+  ) {
+    normalized.budgetCurrencies = Object.fromEntries(
+      Object.entries(data.budgetCurrencies)
+        .filter(([category]) => Object.prototype.hasOwnProperty.call(normalized.budgets, category))
+        .map(([category, currency]) => [category, normalizeCurrencyCode(currency)]),
+    );
   }
 
   return normalized;
@@ -495,16 +756,32 @@ class ExpenseTracker {
     this.transactions = this.loadTransactions();
     this.customCategories = this.loadCustomCategories();
     this.budgets = this.loadBudgets();
-    this.currency = normalizeCurrencyCode(safeReadStorage("currency", DEFAULT_CURRENCY));
+    this.currency = normalizeCurrencyCode(
+      safeReadStorage("currency", DEFAULT_CURRENCY),
+    );
     const savedExchangeRates = safeReadJson("exchangeRates", {});
-    this.exchangeRates = savedExchangeRates && typeof savedExchangeRates === "object" && !Array.isArray(savedExchangeRates)
-      ? savedExchangeRates
-      : {};
+    this.exchangeRates =
+      savedExchangeRates &&
+      typeof savedExchangeRates === "object" &&
+      !Array.isArray(savedExchangeRates)
+        ? savedExchangeRates
+        : {};
     const savedBudgetCurrencies = safeReadJson("budgetCurrencies", {});
-    this.budgetCurrencies = savedBudgetCurrencies && typeof savedBudgetCurrencies === "object" && !Array.isArray(savedBudgetCurrencies)
-      ? savedBudgetCurrencies
-      : {};
+    this.budgetCurrencies =
+      savedBudgetCurrencies &&
+      typeof savedBudgetCurrencies === "object" &&
+      !Array.isArray(savedBudgetCurrencies)
+        ? savedBudgetCurrencies
+        : {};
     this.pendingExchangeRates = {};
+    this.currencyFormatters = {};
+    this.dateFormatter = new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+    this.searchRenderTimer = null;
+    this.renderedTransactions = null;
     this.editingId = null;
     this.expenseChart = null;
     this.incomeChart = null;
@@ -518,7 +795,6 @@ class ExpenseTracker {
     this.renderCategoriesDisplay();
     this.initDarkMode();
     this.initCurrencySelector();
-    this.refreshExchangeRates();
     this.exchangeRateRefreshTimer = setInterval(
       () => this.refreshExchangeRates(),
       24 * 60 * 60 * 1000,
@@ -533,11 +809,14 @@ class ExpenseTracker {
   loadTransactions() {
     const data = safeReadJson("transactions", []);
     if (!Array.isArray(data)) {
-      console.warn('Saved transactions were invalid; starting fresh.');
-      this.toast("Your saved data couldn't be loaded, so a fresh start has been created.", "info");
+      console.warn("Saved transactions were invalid; starting fresh.");
+      this.toast(
+        "Your saved data couldn't be loaded, so a fresh start has been created.",
+        "info",
+      );
       return [];
     }
-    return data;
+    return normalizeStoredTransactions(data);
   }
 
   saveTransactions() {
@@ -547,8 +826,11 @@ class ExpenseTracker {
   loadCustomCategories() {
     const data = safeReadJson("customCategories", { expense: [], income: [] });
     if (!data || typeof data !== "object" || Array.isArray(data)) {
-      console.warn('Saved custom categories were invalid; starting fresh.');
-      this.toast("Your saved data couldn't be loaded, so a fresh start has been created.", "info");
+      console.warn("Saved custom categories were invalid; starting fresh.");
+      this.toast(
+        "Your saved data couldn't be loaded, so a fresh start has been created.",
+        "info",
+      );
       return { expense: [], income: [] };
     }
     return {
@@ -564,11 +846,14 @@ class ExpenseTracker {
   loadBudgets() {
     const data = safeReadJson("budgets", {});
     if (data === null || typeof data !== "object" || Array.isArray(data)) {
-      console.warn('Saved budgets were invalid; starting fresh.');
-      this.toast("Your saved data couldn't be loaded, so a fresh start has been created.", "info");
+      console.warn("Saved budgets were invalid; starting fresh.");
+      this.toast(
+        "Your saved data couldn't be loaded, so a fresh start has been created.",
+        "info",
+      );
       return {};
     }
-    return data;
+    return normalizeStoredBudgets(data);
   }
 
   saveBudgets() {
@@ -599,14 +884,41 @@ class ExpenseTracker {
   }
 
   getBudgetAlertKey(period = {}) {
-    const effective = period && Object.keys(period).length > 0 ? period : getBudgetPeriodRange(this.getFilterState());
+    const effective =
+      period && Object.keys(period).length > 0
+        ? period
+        : getBudgetPeriodRange(this.getFilterState());
     return `${effective.dateFrom || ""}|${effective.dateTo || ""}`;
   }
 
-  checkBudgetAlertsForTransactions(transactions = this.transactions, budgets = this.budgets, period = getBudgetPeriodRange(this.getFilterState())) {
+  checkBudgetAlertsForTransactions(
+    transactions = this.transactions,
+    budgets = this.budgets,
+    period = getBudgetPeriodRange(this.getFilterState()),
+  ) {
     const key = this.getBudgetAlertKey(period);
     const state = this.budgetAlertState[key] || {};
-    const alerts = evaluateBudgetAlerts(transactions, budgets, period, state);
+    const alerts = evaluateBudgetAlerts(
+      transactions,
+      budgets,
+      period,
+      state,
+      (transaction, category) => {
+        const budgetCurrency = normalizeCurrencyCode(
+          this.budgetCurrencies[category],
+        );
+        const display = getDisplayAmount(
+          transaction.amount,
+          getTransactionCurrency(transaction),
+          budgetCurrency,
+          this.getRateForDisplay(
+            getTransactionCurrency(transaction),
+            budgetCurrency,
+          ),
+        );
+        return display.converted ? display.amount : NaN;
+      },
+    );
     this.budgetAlertState[key] = state;
     alerts.forEach((alert) => {
       const toastType = alert.level === "alert" ? "alert" : "warning";
@@ -693,7 +1005,12 @@ class ExpenseTracker {
     const cacheKey = `${baseCurrency}_${targetCurrency}`;
     const cached = this.exchangeRates[cacheKey];
     const cacheAge = cached ? Date.now() - Number(cached.timestamp) : Infinity;
-    if (cached && cacheAge < 24 * 60 * 60 * 1000 && Number.isFinite(Number(cached.rate))) {
+    if (
+      cached &&
+      cacheAge < EXCHANGE_RATE_CACHE_TTL &&
+      Number.isFinite(Number(cached.rate)) &&
+      Number(cached.rate) > 0
+    ) {
       return Number(cached.rate);
     }
 
@@ -701,14 +1018,24 @@ class ExpenseTracker {
       `https://api.frankfurter.app/latest?from=${encodeURIComponent(baseCurrency)}&to=${encodeURIComponent(targetCurrency)}`,
     );
     if (!response.ok) {
-      if (cached && Number.isFinite(Number(cached.rate))) return Number(cached.rate);
+      if (
+        cached &&
+        Number.isFinite(Number(cached.rate)) &&
+        Number(cached.rate) > 0
+      )
+        return Number(cached.rate);
       throw new Error(`Exchange rate request failed: ${response.status}`);
     }
 
     const data = await response.json();
     const rate = Number(data.rates && data.rates[targetCurrency]);
     if (!Number.isFinite(rate) || rate <= 0) {
-      if (cached && Number.isFinite(Number(cached.rate))) return Number(cached.rate);
+      if (
+        cached &&
+        Number.isFinite(Number(cached.rate)) &&
+        Number(cached.rate) > 0
+      )
+        return Number(cached.rate);
       throw new Error("Exchange rate was missing");
     }
 
@@ -724,16 +1051,26 @@ class ExpenseTracker {
 
     const cacheKey = `${source}_${target}`;
     const cached = this.exchangeRates[cacheKey];
-    const cachedRate = cached && Number.isFinite(Number(cached.rate)) ? Number(cached.rate) : null;
+    const cachedRate =
+      cached && Number.isFinite(Number(cached.rate)) && Number(cached.rate) > 0
+        ? Number(cached.rate)
+        : null;
     const cacheAge = cached ? Date.now() - Number(cached.timestamp) : Infinity;
 
-    if (cachedRate !== null && cacheAge < EXCHANGE_RATE_CACHE_TTL) return cachedRate;
+    if (cachedRate !== null && cacheAge < EXCHANGE_RATE_CACHE_TTL)
+      return cachedRate;
     if (!this.pendingExchangeRates[cacheKey]) {
       this.pendingExchangeRates[cacheKey] = this.getExchangeRate(source, target)
         .then(() => this.render())
         .catch((error) => {
-          this.toast("Exchange rates are unavailable; showing the original amount", "warning");
-          console.warn(`Could not refresh ${source}/${target} exchange rate:`, error);
+          this.toast(
+            "Exchange rates are unavailable; showing the original amount",
+            "warning",
+          );
+          console.warn(
+            `Could not refresh ${source}/${target} exchange rate:`,
+            error,
+          );
         })
         .finally(() => {
           delete this.pendingExchangeRates[cacheKey];
@@ -754,37 +1091,51 @@ class ExpenseTracker {
   }
 
   async refreshExchangeRates() {
-    const currencies = Object.keys(this.currencyLocales);
-    await Promise.all(currencies
-      .filter((targetCurrency) => targetCurrency !== this.currency)
-      .map(async (targetCurrency) => {
-        try {
-          await this.getExchangeRate(this.currency, targetCurrency);
-        } catch (error) {
-          console.warn(`Could not refresh ${this.currency}/${targetCurrency} exchange rate:`, error);
-        }
-      }));
+    const currenciesInUse = new Set([this.currency]);
+    this.transactions.forEach((transaction) =>
+      currenciesInUse.add(getTransactionCurrency(transaction)),
+    );
+    Object.keys(this.budgets).forEach((category) => {
+      currenciesInUse.add(
+        normalizeCurrencyCode(this.budgetCurrencies[category]),
+      );
+    });
+
+    await Promise.all(
+      [...currenciesInUse]
+        .filter((targetCurrency) => targetCurrency !== this.currency)
+        .map(async (targetCurrency) => {
+          try {
+            await this.getExchangeRate(targetCurrency, this.currency);
+          } catch (error) {
+            console.warn(
+              `Could not refresh ${this.currency}/${targetCurrency} exchange rate:`,
+              error,
+            );
+          }
+        }),
+    );
   }
 
   formatCurrency(amount, currency = this.currency) {
     const displayCurrency = normalizeCurrencyCode(currency);
-    const locale = this.currencyLocales[displayCurrency] || "en-US";
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: displayCurrency,
-    }).format(amount);
+    if (!this.currencyFormatters[displayCurrency]) {
+      const locale = this.currencyLocales[displayCurrency] || "en-US";
+      this.currencyFormatters[displayCurrency] = new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: displayCurrency,
+      });
+    }
+    return this.currencyFormatters[displayCurrency].format(amount);
   }
 
   formatDate(dateString) {
     const [year, month, day] = String(dateString).split("-").map(Number);
-    const localDate = year && month && day
-      ? new Date(year, month - 1, day)
-      : new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    }).format(localDate);
+    const localDate =
+      year && month && day
+        ? new Date(year, month - 1, day)
+        : new Date(dateString);
+    return this.dateFormatter.format(localDate);
   }
 
   initAdvancedToggle() {
@@ -792,7 +1143,8 @@ class ExpenseTracker {
     const tools = document.getElementById("advanced-tools");
     if (!toggle || !tools) return;
 
-    const shouldOpen = safeReadStorage("advanced-tools-open", "false") === "true";
+    const shouldOpen =
+      safeReadStorage("advanced-tools-open", "false") === "true";
     tools.classList.toggle("hidden", !shouldOpen);
     toggle.setAttribute("aria-expanded", String(shouldOpen));
     toggle.textContent = shouldOpen ? "Hide Advanced Tools" : "More Tools";
@@ -842,8 +1194,12 @@ class ExpenseTracker {
     const manualEntryTab = document.getElementById("manual-entry-tab");
     const importEntryTab = document.getElementById("import-entry-tab");
     if (manualEntryTab && importEntryTab) {
-      manualEntryTab.addEventListener("click", () => this.setEntryMode("manual"));
-      importEntryTab.addEventListener("click", () => this.setEntryMode("import"));
+      manualEntryTab.addEventListener("click", () =>
+        this.setEntryMode("manual"),
+      );
+      importEntryTab.addEventListener("click", () =>
+        this.setEntryMode("import"),
+      );
     }
 
     const cancelEditBtn = document.getElementById("cancel-edit-btn");
@@ -855,13 +1211,19 @@ class ExpenseTracker {
     if (filterType) filterType.addEventListener("change", () => this.render());
 
     const filterCategory = document.getElementById("filter-category");
-    if (filterCategory) filterCategory.addEventListener("change", () => this.render());
+    if (filterCategory)
+      filterCategory.addEventListener("change", () => this.render());
 
     const filterSearch = document.getElementById("filter-search");
-    if (filterSearch) filterSearch.addEventListener("input", () => this.render());
+    if (filterSearch)
+      filterSearch.addEventListener("input", () => {
+        clearTimeout(this.searchRenderTimer);
+        this.searchRenderTimer = setTimeout(() => this.render(), 150);
+      });
 
     const emptyStateReset = document.getElementById("empty-state-reset");
-    if (emptyStateReset) emptyStateReset.addEventListener("click", () => this.resetFilters());
+    if (emptyStateReset)
+      emptyStateReset.addEventListener("click", () => this.resetFilters());
 
     const resetFilter = document.getElementById("reset-filter");
     if (resetFilter)
@@ -893,18 +1255,23 @@ class ExpenseTracker {
     }
 
     const setBudgetBtn = document.getElementById("set-budget-btn");
-    if (setBudgetBtn) setBudgetBtn.addEventListener("click", () => this.setBudget());
+    if (setBudgetBtn)
+      setBudgetBtn.addEventListener("click", () => this.setBudget());
 
     const filterDateFrom = document.getElementById("filter-date-from");
     const filterDateTo = document.getElementById("filter-date-to");
-    if (filterDateFrom) filterDateFrom.addEventListener("change", () => this.render());
-    if (filterDateTo) filterDateTo.addEventListener("change", () => this.render());
+    if (filterDateFrom)
+      filterDateFrom.addEventListener("change", () => this.render());
+    if (filterDateTo)
+      filterDateTo.addEventListener("change", () => this.render());
 
     const exportCsvBtn = document.getElementById("export-csv-btn");
-    if (exportCsvBtn) exportCsvBtn.addEventListener("click", () => this.exportToCSV());
+    if (exportCsvBtn)
+      exportCsvBtn.addEventListener("click", () => this.exportToCSV());
 
     const exportJsonBtn = document.getElementById("export-json-btn");
-    if (exportJsonBtn) exportJsonBtn.addEventListener("click", () => this.exportBackup());
+    if (exportJsonBtn)
+      exportJsonBtn.addEventListener("click", () => this.exportBackup());
 
     const importJsonInput = document.getElementById("import-json-input");
     if (importJsonInput) {
@@ -916,46 +1283,58 @@ class ExpenseTracker {
     const importDropZone = document.getElementById("import-drop-zone");
     if (importCsvButton && importCsvInput) {
       importCsvButton.addEventListener("click", () => importCsvInput.click());
-      importCsvInput.addEventListener("change", (event) => this.importCsvFile(event.target.files[0]));
+      importCsvInput.addEventListener("change", (event) =>
+        this.importCsvFile(event.target.files[0]),
+      );
     }
     if (importDropZone) {
-      ["dragenter", "dragover"].forEach((eventName) => importDropZone.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        importDropZone.classList.add("is-dragging");
-      }));
-      ["dragleave", "drop"].forEach((eventName) => importDropZone.addEventListener(eventName, (event) => {
-        event.preventDefault();
-        importDropZone.classList.remove("is-dragging");
-      }));
-      importDropZone.addEventListener("drop", (event) => this.importCsvFile(event.dataTransfer.files[0]));
+      ["dragenter", "dragover"].forEach((eventName) =>
+        importDropZone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          importDropZone.classList.add("is-dragging");
+        }),
+      );
+      ["dragleave", "drop"].forEach((eventName) =>
+        importDropZone.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          importDropZone.classList.remove("is-dragging");
+        }),
+      );
+      importDropZone.addEventListener("drop", (event) =>
+        this.importCsvFile(event.dataTransfer.files[0]),
+      );
     }
 
     // Event delegation for dynamically created elements
     document.addEventListener("click", (e) => {
-      if (e.target.classList.contains("remove-btn")) {
-        const category = e.target.dataset.category;
-        const type = e.target.dataset.type;
+      const removeButton = e.target.closest(".remove-btn");
+      if (removeButton) {
+        const category = removeButton.dataset.category;
+        const type = removeButton.dataset.type;
         if (category && type) this.removeCustomCategory(category, type);
       }
 
-      if (e.target.classList.contains("budget-delete-btn")) {
-        this.handleConfirmableDelete(e.target, () =>
-          this.removeBudget(e.target.dataset.category),
+      const budgetDeleteButton = e.target.closest(".budget-delete-btn");
+      if (budgetDeleteButton) {
+        this.handleConfirmableDelete(budgetDeleteButton, () =>
+          this.removeBudget(budgetDeleteButton.dataset.category),
         );
       }
 
-      if (e.target.classList.contains("btn-delete")) {
-        const transactionItem = e.target.closest(".transaction-item");
+      const deleteButton = e.target.closest(".btn-delete");
+      if (deleteButton) {
+        const transactionItem = deleteButton.closest(".transaction-item");
         if (transactionItem) {
-          this.handleConfirmableDelete(e.target, () => {
+          this.handleConfirmableDelete(deleteButton, () => {
             const id = parseInt(transactionItem.dataset.id, 10);
             if (!isNaN(id)) this.deleteTransaction(id);
           });
         }
       }
 
-      if (e.target.classList.contains("btn-edit")) {
-        const transactionItem = e.target.closest(".transaction-item");
+      const editButton = e.target.closest(".btn-edit");
+      if (editButton) {
+        const transactionItem = editButton.closest(".transaction-item");
         if (transactionItem) {
           const id = parseInt(transactionItem.dataset.id, 10);
           if (!isNaN(id)) this.startEditTransaction(id);
@@ -964,8 +1343,9 @@ class ExpenseTracker {
     });
 
     document.addEventListener("click", (e) => {
-      if (e.target.classList.contains("collapse-btn")) {
-        this.toggleCollapse(e.target);
+      const collapseButton = e.target.closest(".collapse-btn");
+      if (collapseButton) {
+        this.toggleCollapse(collapseButton);
       }
     });
   }
@@ -1059,10 +1439,12 @@ class ExpenseTracker {
 
     if (filterCategory) {
       const selectedCategory = filterCategory.value;
-      const categories = [...new Set([
-        ...this.getAllCategories("expense"),
-        ...this.getAllCategories("income"),
-      ])];
+      const categories = [
+        ...new Set([
+          ...this.getAllCategories("expense"),
+          ...this.getAllCategories("income"),
+        ]),
+      ];
       filterCategory.innerHTML = '<option value="">All Categories</option>';
       categories.forEach((cat) => {
         const option = document.createElement("option");
@@ -1174,7 +1556,10 @@ class ExpenseTracker {
           description,
           amount,
           date,
-          currency: getTransactionCurrency(this.transactions[index], this.currency),
+          currency: getTransactionCurrency(
+            this.transactions[index],
+            this.currency,
+          ),
         };
         this.saveTransactions();
         this.toast("Transaction updated", "success");
@@ -1262,7 +1647,8 @@ class ExpenseTracker {
 
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
-    const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const iso = (d) =>
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
     if (range === "all") {
       from.value = "";
@@ -1298,21 +1684,38 @@ class ExpenseTracker {
   }
 
   getFilteredTransactions() {
+    if (this.renderedTransactions) return this.renderedTransactions;
     return getFilteredTransactions(this.transactions, this.getFilterState());
   }
 
   calculateTotals(useFiltered = false) {
-    return calculateTotals(this.transactions, useFiltered, this.getFilterState());
+    return calculateTotals(
+      this.transactions,
+      useFiltered,
+      this.getFilterState(),
+    );
   }
 
   calculateDisplayTotals(useFiltered = false) {
-    const source = useFiltered ? this.getFilteredTransactions() : this.transactions;
-    return source.reduce((totals, transaction) => {
-      const display = this.getDisplayValue(transaction.amount, getTransactionCurrency(transaction));
-      if (transaction.type === "income") totals.income += display.amount;
-      else if (transaction.type === "expense") totals.expenses += display.amount;
-      return { ...totals, balance: totals.income - totals.expenses };
-    }, { income: 0, expenses: 0, balance: 0 });
+    const source = useFiltered
+      ? this.getFilteredTransactions()
+      : this.transactions;
+    return source.reduce(
+      (totals, transaction) => {
+        const display = this.getDisplayValue(
+          transaction.amount,
+          getTransactionCurrency(transaction),
+        );
+        if (!display.converted) {
+          return { ...totals, conversionUnavailable: true };
+        }
+        if (transaction.type === "income") totals.income += display.amount;
+        else if (transaction.type === "expense")
+          totals.expenses += display.amount;
+        return { ...totals, balance: totals.income - totals.expenses };
+      },
+      { income: 0, expenses: 0, balance: 0, conversionUnavailable: false },
+    );
   }
 
   deleteTransaction(id) {
@@ -1326,6 +1729,10 @@ class ExpenseTracker {
 
   // ---------- Render ----------
   render() {
+    this.renderedTransactions = getFilteredTransactions(
+      this.transactions,
+      this.getFilterState(),
+    );
     this.updateEmptyStateHint();
     this.updateSummary();
     this.renderCharts();
@@ -1333,23 +1740,36 @@ class ExpenseTracker {
     this.renderBudgets();
     this.renderTransactions();
     this.updateAllChartIcons();
+    this.renderedTransactions = null;
   }
 
   updateSummary() {
     const hasFilters = Object.values(this.getFilterState()).some(Boolean);
-    const { income, expenses, balance } = this.calculateDisplayTotals(hasFilters);
+    const { income, expenses, balance, conversionUnavailable } =
+      this.calculateDisplayTotals(hasFilters);
 
     const totalIncomeEl = document.getElementById("total-income");
     const totalExpensesEl = document.getElementById("total-expenses");
     const balanceEl = document.getElementById("balance");
 
-    if (totalIncomeEl) totalIncomeEl.textContent = this.formatCurrency(income);
-    if (totalExpensesEl) totalExpensesEl.textContent = this.formatCurrency(expenses);
+    const unavailableLabel = "Rate unavailable";
+    if (totalIncomeEl)
+      totalIncomeEl.textContent = conversionUnavailable
+        ? unavailableLabel
+        : this.formatCurrency(income);
+    if (totalExpensesEl)
+      totalExpensesEl.textContent = conversionUnavailable
+        ? unavailableLabel
+        : this.formatCurrency(expenses);
     if (balanceEl) {
-      balanceEl.textContent = this.formatCurrency(balance);
+      balanceEl.textContent = conversionUnavailable
+        ? unavailableLabel
+        : this.formatCurrency(balance);
       balanceEl.classList.remove("positive", "negative");
-      if (balance < 0) balanceEl.classList.add("negative");
-      else if (balance > 0) balanceEl.classList.add("positive");
+      if (!conversionUnavailable) {
+        if (balance < 0) balanceEl.classList.add("negative");
+        else if (balance > 0) balanceEl.classList.add("positive");
+      }
     }
   }
 
@@ -1363,15 +1783,21 @@ class ExpenseTracker {
     if (filteredTransactions.length === 0) {
       container.innerHTML = "";
       emptyState?.classList.toggle("hidden", this.transactions.length === 0);
-      this.setCardCollapsed("transactions-section", this.transactions.length === 0);
+      this.setCardCollapsed(
+        "transactions-section",
+        this.transactions.length === 0,
+      );
       return;
     }
 
     emptyState?.classList.add("hidden");
     this.setCardCollapsed("transactions-section", false);
-    filteredTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+    filteredTransactions.sort((a, b) =>
+      String(b.date).localeCompare(String(a.date)),
+    );
 
     container.innerHTML = "";
+    const fragment = document.createDocumentFragment();
 
     filteredTransactions.forEach((transaction) => {
       const item = document.createElement("div");
@@ -1419,8 +1845,9 @@ class ExpenseTracker {
       item.appendChild(editBtn);
       item.appendChild(deleteBtn);
 
-      container.appendChild(item);
+      fragment.appendChild(item);
     });
+    container.appendChild(fragment);
   }
 
   escapeHtml(text) {
@@ -1436,8 +1863,13 @@ class ExpenseTracker {
   getCategoryTotals(type) {
     return this.getFilteredTransactions().reduce((totals, transaction) => {
       if (transaction.type !== type) return totals;
-      const display = this.getDisplayValue(transaction.amount, getTransactionCurrency(transaction));
-      totals[transaction.category] = (totals[transaction.category] || 0) + display.amount;
+      const display = this.getDisplayValue(
+        transaction.amount,
+        getTransactionCurrency(transaction),
+      );
+      if (!display.converted) return totals;
+      totals[transaction.category] =
+        (totals[transaction.category] || 0) + display.amount;
       return totals;
     }, {});
   }
@@ -1458,7 +1890,9 @@ class ExpenseTracker {
       return;
     }
 
-    const labels = Object.keys(categoryTotals).map((cat) => this.capitalize(cat));
+    const labels = Object.keys(categoryTotals).map((cat) =>
+      this.capitalize(cat),
+    );
     const data = Object.values(categoryTotals);
 
     if (data.length === 0) {
@@ -1473,17 +1907,43 @@ class ExpenseTracker {
     this.setCardCollapsed("expense-chart-section", false);
     ctx.style.display = "block";
 
-    const colors = ["#e74c3c", "#e67e22", "#f39c12", "#d35400", "#c0392b", "#a93226"];
-    if (this.expenseChart) this.expenseChart.destroy();
-
-    this.expenseChart = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels,
-        datasets: [{ data, backgroundColor: colors.slice(0, data.length), borderColor: "#fff", borderWidth: 2 }],
-      },
-      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } },
-    });
+    const colors = [
+      "#e74c3c",
+      "#e67e22",
+      "#f39c12",
+      "#d35400",
+      "#c0392b",
+      "#a93226",
+    ];
+    if (this.expenseChart) {
+      this.expenseChart.data.labels = labels;
+      this.expenseChart.data.datasets[0].data = data;
+      this.expenseChart.data.datasets[0].backgroundColor = colors.slice(
+        0,
+        data.length,
+      );
+      this.expenseChart.update("none");
+    } else {
+      this.expenseChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels,
+          datasets: [
+            {
+              data,
+              backgroundColor: colors.slice(0, data.length),
+              borderColor: "#fff",
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
 
     this.renderLegend("expense-chart-legend", labels, data, colors);
     this.updateChartIconVisibility("expenseChart", "expenseChartIcon");
@@ -1500,7 +1960,9 @@ class ExpenseTracker {
       return;
     }
 
-    const labels = Object.keys(categoryTotals).map((cat) => this.capitalize(cat));
+    const labels = Object.keys(categoryTotals).map((cat) =>
+      this.capitalize(cat),
+    );
     const data = Object.values(categoryTotals);
 
     if (data.length === 0) {
@@ -1515,17 +1977,43 @@ class ExpenseTracker {
     this.setCardCollapsed("income-chart-section", false);
     ctx.style.display = "block";
 
-    const colors = ["#27ae60", "#2ecc71", "#1abc9c", "#16a085", "#229954", "#1e8449"];
-    if (this.incomeChart) this.incomeChart.destroy();
-
-    this.incomeChart = new Chart(ctx, {
-      type: "doughnut",
-      data: {
-        labels,
-        datasets: [{ data, backgroundColor: colors.slice(0, data.length), borderColor: "#fff", borderWidth: 2 }],
-      },
-      options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } },
-    });
+    const colors = [
+      "#27ae60",
+      "#2ecc71",
+      "#1abc9c",
+      "#16a085",
+      "#229954",
+      "#1e8449",
+    ];
+    if (this.incomeChart) {
+      this.incomeChart.data.labels = labels;
+      this.incomeChart.data.datasets[0].data = data;
+      this.incomeChart.data.datasets[0].backgroundColor = colors.slice(
+        0,
+        data.length,
+      );
+      this.incomeChart.update("none");
+    } else {
+      this.incomeChart = new Chart(ctx, {
+        type: "doughnut",
+        data: {
+          labels,
+          datasets: [
+            {
+              data,
+              backgroundColor: colors.slice(0, data.length),
+              borderColor: "#fff",
+              borderWidth: 2,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: false } },
+        },
+      });
+    }
 
     this.renderLegend("income-chart-legend", labels, data, colors);
     this.updateChartIconVisibility("incomeChart", "incomeChartIcon");
@@ -1569,7 +2057,8 @@ class ExpenseTracker {
     const budgetCategorySelect = document.getElementById("budget-category");
     if (!budgetCategorySelect) return;
 
-    budgetCategorySelect.innerHTML = '<option value="">Select Category</option>';
+    budgetCategorySelect.innerHTML =
+      '<option value="">Select Category</option>';
     this.getAllCategories("expense").forEach((cat) => {
       const option = document.createElement("option");
       option.value = cat;
@@ -1622,20 +2111,29 @@ class ExpenseTracker {
     this.setCardCollapsed("budget-section", false);
 
     container.innerHTML = "";
-    const visibleTransactions = this.getFilteredTransactions();
     const period = getBudgetPeriodRange(this.getFilterState());
+    const visibleTransactions = getFilteredTransactions(
+      this.getFilteredTransactions(),
+      period,
+    );
 
     Object.entries(this.budgets).forEach(([category, budgetAmount]) => {
-      const budgetCurrency = normalizeCurrencyCode(this.budgetCurrencies[category]);
+      const budgetCurrency = normalizeCurrencyCode(
+        this.budgetCurrencies[category],
+      );
       const spent = visibleTransactions.reduce((sum, transaction) => {
-        if (transaction.type !== "expense" || transaction.category !== category) return sum;
+        if (transaction.type !== "expense" || transaction.category !== category)
+          return sum;
         const display = getDisplayAmount(
           transaction.amount,
           getTransactionCurrency(transaction),
           budgetCurrency,
-          this.getRateForDisplay(getTransactionCurrency(transaction), budgetCurrency),
+          this.getRateForDisplay(
+            getTransactionCurrency(transaction),
+            budgetCurrency,
+          ),
         );
-        return sum + display.amount;
+        return display.converted ? sum + display.amount : sum;
       }, 0);
       const displayBudget = getDisplayAmount(
         budgetAmount,
@@ -1644,8 +2142,12 @@ class ExpenseTracker {
         this.getRateForDisplay(budgetCurrency, this.currency),
       );
       const displaySpent = this.getDisplayValue(spent, budgetCurrency);
-      const progressState = getBudgetProgressState(displaySpent.amount, displayBudget.amount);
-      const status = progressState.status === "alert" ? "exceeded" : progressState.status;
+      const progressState = getBudgetProgressState(
+        displaySpent.amount,
+        displayBudget.amount,
+      );
+      const status =
+        progressState.status === "alert" ? "exceeded" : progressState.status;
 
       const item = document.createElement("div");
       item.className = `budget-item ${status}`.trim();
@@ -1702,8 +2204,13 @@ class ExpenseTracker {
     this.getFilteredTransactions().forEach((transaction) => {
       const month = transaction.date.substring(0, 7);
       if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
-      const display = this.getDisplayValue(transaction.amount, getTransactionCurrency(transaction));
-      if (transaction.type === "income") monthlyData[month].income += display.amount;
+      const display = this.getDisplayValue(
+        transaction.amount,
+        getTransactionCurrency(transaction),
+      );
+      if (!display.converted) return;
+      if (transaction.type === "income")
+        monthlyData[month].income += display.amount;
       else monthlyData[month].expense += display.amount;
     });
 
@@ -1722,27 +2229,54 @@ class ExpenseTracker {
     const incomeData = sortedMonths.map((m) => monthlyData[m].income);
     const labels = sortedMonths.map((month) => {
       const [year, monthNum] = month.split("-");
-      return new Date(year, monthNum - 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      return new Date(year, monthNum - 1).toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+      });
     });
 
-    if (this.trendsChart) this.trendsChart.destroy();
-
-    this.trendsChart = new Chart(canvas, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [
-          { label: "Expenses", data: expenseData, borderColor: "#e74c3c", backgroundColor: "rgba(231, 76, 60, 0.1)", tension: 0.3, fill: true },
-          { label: "Income", data: incomeData, borderColor: "#27ae60", backgroundColor: "rgba(39, 174, 96, 0.1)", tension: 0.3, fill: true },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: { legend: { display: true } },
-        scales: { y: { beginAtZero: true, ticks: { callback: (value) => this.formatCurrency(value) } } },
-      },
-    });
+    if (this.trendsChart) {
+      this.trendsChart.data.labels = labels;
+      this.trendsChart.data.datasets[0].data = expenseData;
+      this.trendsChart.data.datasets[1].data = incomeData;
+      this.trendsChart.update("none");
+    } else {
+      this.trendsChart = new Chart(canvas, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Expenses",
+              data: expenseData,
+              borderColor: "#e74c3c",
+              backgroundColor: "rgba(231, 76, 60, 0.1)",
+              tension: 0.3,
+              fill: true,
+            },
+            {
+              label: "Income",
+              data: incomeData,
+              borderColor: "#27ae60",
+              backgroundColor: "rgba(39, 174, 96, 0.1)",
+              tension: 0.3,
+              fill: true,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: true } },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { callback: (value) => this.formatCurrency(value) },
+            },
+          },
+        },
+      });
+    }
     this.updateChartIconVisibility("trendsChart", "trendsChartIcon");
   }
 
@@ -1772,7 +2306,11 @@ class ExpenseTracker {
       csv += row.join(",") + "\n";
     });
 
-    this.downloadFile(csv, `expenses_${new Date().toISOString().split("T")[0]}.csv`, "text/csv");
+    this.downloadFile(
+      csv,
+      `expenses_${new Date().toISOString().split("T")[0]}.csv`,
+      "text/csv",
+    );
   }
 
   exportBackup() {
@@ -1796,6 +2334,11 @@ class ExpenseTracker {
   importBackup(event) {
     const file = event.target.files[0];
     if (!file) return;
+    if (file.size > MAX_BACKUP_BYTES) {
+      this.toast("Backup files must be 5 MB or smaller", "error");
+      event.target.value = "";
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -1874,11 +2417,14 @@ class ExpenseTracker {
       this.showImportMapping(parsed);
       return;
     }
-    this.showImportPreview(normalizeImportedRows(parsed, detected, this.currency));
+    this.showImportPreview(
+      normalizeImportedRows(parsed, detected, this.currency),
+    );
   }
 
   commitImportedTransactions(transactions) {
-    if (transactions.length === 0) throw new Error("No valid transactions were found in that CSV.");
+    if (transactions.length === 0)
+      throw new Error("No valid transactions were found in that CSV.");
     const imported = transactions.map((transaction, index) => ({
       ...transaction,
       id: Date.now() + index,
@@ -1886,9 +2432,16 @@ class ExpenseTracker {
     }));
     this.transactions.push(...imported);
     this.saveTransactions();
-    this.checkBudgetAlertsForTransactions(this.transactions, this.budgets, getBudgetPeriodRange(this.getFilterState()));
+    this.checkBudgetAlertsForTransactions(
+      this.transactions,
+      this.budgets,
+      getBudgetPeriodRange(this.getFilterState()),
+    );
     this.render();
-    this.toast(`${imported.length} transaction${imported.length === 1 ? "" : "s"} imported`, "success");
+    this.toast(
+      `${imported.length} transaction${imported.length === 1 ? "" : "s"} imported`,
+      "success",
+    );
   }
 
   showImportPreview(transactions) {
@@ -1901,11 +2454,13 @@ class ExpenseTracker {
     panel.appendChild(heading);
     const table = document.createElement("table");
     const header = document.createElement("tr");
-    ["Keep", "Date", "Description", "Type", "Amount", "Currency"].forEach((text) => {
-      const cell = document.createElement("th");
-      cell.textContent = text;
-      header.appendChild(cell);
-    });
+    ["Keep", "Date", "Description", "Type", "Amount", "Currency"].forEach(
+      (text) => {
+        const cell = document.createElement("th");
+        cell.textContent = text;
+        header.appendChild(cell);
+      },
+    );
     table.appendChild(header);
     transactions.slice(0, 10).forEach((transaction, index) => {
       const row = document.createElement("tr");
@@ -1916,7 +2471,13 @@ class ExpenseTracker {
       checkbox.dataset.importIndex = String(index);
       keepCell.appendChild(checkbox);
       row.appendChild(keepCell);
-      [transaction.date, transaction.description, capitalize(transaction.type), String(transaction.amount), transaction.currency].forEach((value) => {
+      [
+        transaction.date,
+        transaction.description,
+        capitalize(transaction.type),
+        String(transaction.amount),
+        transaction.currency,
+      ].forEach((value) => {
         const cell = document.createElement("td");
         cell.textContent = value;
         row.appendChild(cell);
@@ -1925,14 +2486,23 @@ class ExpenseTracker {
     });
     panel.appendChild(table);
     const note = document.createElement("p");
-    note.textContent = transactions.length > 10 ? "Showing the first 10 rows. Unchecked preview rows will be excluded." : "Uncheck rows you do not want to import.";
+    note.textContent =
+      transactions.length > 10
+        ? "Showing the first 10 rows. Unchecked preview rows will be excluded."
+        : "Uncheck rows you do not want to import.";
     panel.appendChild(note);
     const confirm = document.createElement("button");
     confirm.type = "button";
     confirm.textContent = "Confirm import";
     confirm.addEventListener("click", () => {
-      const excluded = new Set(Array.from(panel.querySelectorAll("input[data-import-index]:not(:checked)")).map((input) => Number(input.dataset.importIndex)));
-      this.commitImportedTransactions(transactions.filter((_, index) => !excluded.has(index)));
+      const excluded = new Set(
+        Array.from(
+          panel.querySelectorAll("input[data-import-index]:not(:checked)"),
+        ).map((input) => Number(input.dataset.importIndex)),
+      );
+      this.commitImportedTransactions(
+        transactions.filter((_, index) => !excluded.has(index)),
+      );
       this.cancelImport();
     });
     panel.appendChild(confirm);
@@ -1964,7 +2534,10 @@ class ExpenseTracker {
     heading.textContent = "Map CSV columns";
     panel.appendChild(heading);
     const fields = [
-      ["date", "Date"], ["description", "Description"], ["amount", "Amount"], ["type", "Type (debit/credit)"],
+      ["date", "Date"],
+      ["description", "Description"],
+      ["amount", "Amount"],
+      ["type", "Type (debit/credit)"],
       ["currency", "Currency (optional)"],
     ];
     const selects = {};
@@ -1988,7 +2561,8 @@ class ExpenseTracker {
       selects[key] = select;
     });
     const typeHint = document.createElement("p");
-    typeHint.textContent = "Type values should contain debit/expense or credit/income.";
+    typeHint.textContent =
+      "Type values should contain debit/expense or credit/income.";
     panel.appendChild(typeHint);
     const submit = document.createElement("button");
     submit.type = "button";
@@ -2001,7 +2575,10 @@ class ExpenseTracker {
       }
       const mapping = Object.fromEntries([
         ...required.map((key) => [key, Number(selects[key].value)]),
-        ["currency", selects.currency.value === "" ? -1 : Number(selects.currency.value)],
+        [
+          "currency",
+          selects.currency.value === "" ? -1 : Number(selects.currency.value),
+        ],
       ]);
       try {
         this.showImportPreview(normalizeImportedRows(parsed, mapping));
@@ -2054,7 +2631,7 @@ class ExpenseTracker {
     const section = button.closest(".brick");
     if (!section) return;
 
-    const content = section.querySelector(".it brick-content");
+    const content = section.querySelector(".brick-content");
     if (!content) return;
 
     const isCollapsed = section.classList.contains("collapsed");
@@ -2096,21 +2673,35 @@ class ExpenseTracker {
 // Initialize the app only on the actual main page
 let app;
 function initializeApp() {
-  if (typeof document !== "undefined" && document.getElementById("expense-form")) {
+  if (
+    typeof document !== "undefined" &&
+    document.getElementById("expense-form")
+  ) {
     app = new ExpenseTracker();
     window.app = app;
     window.ExpenseTracker = ExpenseTracker;
 
     const target = window.location.hash;
+    const allowedTargets = new Set([
+      "#category-section",
+      "#budget-section",
+      "#filter-section",
+      "#expense-chart-section",
+      "#transactions-section",
+    ]);
     if (target === "#import-entry-panel") app.setEntryMode("import");
-    const advancedTarget = document.querySelector(`#advanced-tools ${target}`);
+    const advancedTarget = allowedTargets.has(target)
+      ? document.getElementById(target.slice(1))
+      : null;
     if (advancedTarget) {
       const tools = document.getElementById("advanced-tools");
       const toggle = document.getElementById("advanced-toggle");
       if (tools) tools.classList.remove("hidden");
       if (toggle) {
         toggle.setAttribute("aria-expanded", "true");
-        toggle.querySelector("span")?.replaceChildren(document.createTextNode("Hide Advanced Tools"));
+        toggle
+          .querySelector("span")
+          ?.replaceChildren(document.createTextNode("Hide Advanced Tools"));
       }
       advancedTarget.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -2125,23 +2716,23 @@ if (typeof document !== "undefined") {
   }
 }
 
-if (typeof window !== "undefined") {i 
+if (typeof window !== "undefined") {
   window.calculateTotals = calculateTotals;
   window.getFilteredTransactions = getFilteredTransactions;
   window.getCategoryTotals = getCategoryTotals;
-    window.getBudgetPeriodRange = getBudgetPeriodRange;
-    window.getCategorySpendForPeriod = getCategorySpendForPeriod;
-    window.evaluateBudgetAlerts = evaluateBudgetAlerts;
-    window.getBudgetProgressState = getBudgetProgressState;
-    window.csvField = csvField;
-    window.parseCsv = parseCsv;
-    window.detectImportFormat = detectImportFormat;
-    window.normalizeImportedRows = normalizeImportedRows;
-    window.normalizeBackupData = normalizeBackupData;
-    window.capitalize = capitalize;
-    window.convertAmount = convertAmount;
-    window.getDisplayAmount = getDisplayAmount;
-    window.getDisplayTransactions = getDisplayTransactions;
+  window.getBudgetPeriodRange = getBudgetPeriodRange;
+  window.getCategorySpendForPeriod = getCategorySpendForPeriod;
+  window.evaluateBudgetAlerts = evaluateBudgetAlerts;
+  window.getBudgetProgressState = getBudgetProgressState;
+  window.csvField = csvField;
+  window.parseCsv = parseCsv;
+  window.detectImportFormat = detectImportFormat;
+  window.normalizeImportedRows = normalizeImportedRows;
+  window.normalizeBackupData = normalizeBackupData;
+  window.capitalize = capitalize;
+  window.convertAmount = convertAmount;
+  window.getDisplayAmount = getDisplayAmount;
+  window.getDisplayTransactions = getDisplayTransactions;
 }
 
 if (typeof module !== "undefined") {
@@ -2163,6 +2754,8 @@ if (typeof module !== "undefined") {
     convertAmount,
     getDisplayAmount,
     getDisplayTransactions,
+    normalizeStoredTransactions,
+    normalizeStoredBudgets,
   };
 }
 

@@ -1726,6 +1726,7 @@ html.dark .btn-edit:hover::before {
   content: '';
   position: absolute;
   inset: 0;
+  z-index: 0;
   background: linear-gradient(135deg, #162839, #2c3e50);
   opacity: 0;
   transition: opacity 0.3s ease;
@@ -1769,6 +1770,8 @@ html.dark .category-tag:hover::before {
 }
 
 .category-tag .remove-btn {
+  position: relative;
+  z-index: 1;
   background: none;
   border: none;
   cursor: pointer;
@@ -1782,6 +1785,32 @@ html.dark .category-tag:hover::before {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+#category-content #new-category-input {
+  flex: 1 1 140px;
+  min-width: 140px;
+  color: #191c1e;
+  caret-color: #191c1e;
+}
+
+#category-content #category-type-select {
+  width: 140px;
+  flex: 0 1 140px;
+}
+
+html.dark #category-content #new-category-input {
+  color: #f4f7f9;
+  caret-color: #f4f7f9;
+}
+
+@media (max-width: 639px) {
+  #category-content #new-category-input,
+  #category-content #category-type-select {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
 }
 
 .category-tag .remove-btn:hover {
