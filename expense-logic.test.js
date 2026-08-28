@@ -13,7 +13,80 @@ import {
   getCategorySpendForPeriod,
   evaluateBudgetAlerts,
   getBudgetProgressState,
+  convertAmount,
+  getDisplayAmount,
+  getDisplayTransactions,
+  ExpenseTracker,
 } from "./app.js";
+
+describe("convertAmount", () => {
+  it("converts an amount using the supplied exchange rate", () => {
+    expect(convertAmount(100, 0.92)).toBeCloseTo(92);
+  });
+
+  it("leaves invalid values unchanged", () => {
+    expect(convertAmount(100, NaN)).toBe(100);
+  });
+});
+
+describe("display-only currency conversion", () => {
+  it("converts for display without modifying stored transactions or budgets", () => {
+    const transactions = [{ type: "expense", amount: 100, currency: "USD" }];
+    const budgets = { food: 200 };
+    const beforeTransactions = JSON.stringify(transactions);
+    const beforeBudgets = JSON.stringify(budgets);
+
+    const displayed = getDisplayTransactions(transactions, "EUR", () => 0.92);
+
+    expect(displayed[0].displayAmount).toBeCloseTo(92);
+    expect(displayed[0].displayCurrency).toBe("EUR");
+    expect(JSON.stringify(transactions)).toBe(beforeTransactions);
+    expect(JSON.stringify(budgets)).toBe(beforeBudgets);
+  });
+
+  it("falls back to the original amount and currency when no rate exists", () => {
+    expect(getDisplayAmount(100, "USD", "EUR", null)).toEqual({
+      amount: 100,
+      currency: "USD",
+      converted: false,
+    });
+  });
+
+  it("preserves stored data through repeated A to B to A display changes", () => {
+    const transactions = [{ id: 1, amount: 100, currency: "USD" }];
+    const budgets = { food: 200 };
+    const before = JSON.stringify({ transactions, budgets });
+    const resolver = (source, target) => source === "USD" && target === "EUR" ? 0.92 : 1.087;
+
+    getDisplayTransactions(transactions, "EUR", resolver);
+    getDisplayTransactions(transactions, "USD", resolver);
+
+    expect(JSON.stringify({ transactions, budgets })).toBe(before);
+  });
+
+  it("does not mutate stored data when the display currency changes", () => {
+    const tracker = Object.create(ExpenseTracker.prototype);
+    tracker.currency = "USD";
+    tracker.render = () => {};
+    const transactions = [{ id: 1, amount: 100, currency: "USD" }];
+    const budgets = { food: 200 };
+    tracker.transactions = transactions;
+    tracker.budgets = budgets;
+    const before = JSON.stringify({ transactions, budgets });
+
+    const previousStorage = globalThis.localStorage;
+    globalThis.localStorage = { setItem: () => {} };
+    try {
+      tracker.changeDisplayCurrency("EUR");
+      tracker.changeDisplayCurrency("USD");
+    } finally {
+      if (previousStorage === undefined) delete globalThis.localStorage;
+      else globalThis.localStorage = previousStorage;
+    }
+
+    expect(JSON.stringify({ transactions, budgets })).toBe(before);
+  });
+});
 
 describe("calculateTotals", () => {
   it("sums income, expenses, and balance correctly", () => {
@@ -175,6 +248,7 @@ describe("CSV statement import", () => {
       category: "other",
       description: "Groceries",
       amount: 2,
+      currency: "USD",
     }]);
   });
 });
