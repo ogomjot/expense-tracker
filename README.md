@@ -46,15 +46,19 @@ Test coverage includes totals calculation, transaction filtering, CSV parsing/es
 
 ```text
 .
-├── index.html         # Landing page and marketing content
-├── main.html           # Main app dashboard and controls
-├── main.css             # Shared styling, layout, and theme rules
-├── app.js                # Core app logic: transactions, budgets, storage, exports, Chart.js integration
-├── csv-import.js         # Statement import: format detection, parsing, and normalization for bank/UPI CSVs
-├── scroll-fx.js           # Small front-end interaction/scroll script
-├── package.json           # Dev-only test configuration
-├── project.md              # Extra project notes and design context
-└── README.md                # This file
+├── index.html              # Landing page and marketing content
+├── main.html               # Main app dashboard and controls
+├── main.css                # Shared styling, layout, and theme rules
+├── app.js                  # Core app logic: transactions, budgets, storage, exports, Chart.js integration
+├── csv-import.js           # Statement import: format detection, parsing, and normalization for bank/UPI CSVs
+├── scroll-fx.js            # Small front-end interaction/scroll script
+├── expense-logic.test.js   # Vitest test suite
+├── package.json            # Dev-only test configuration
+├── package-lock.json       # Locked dependency versions for the dev/test tooling
+├── project.md               # Extra project notes and design context
+├── robots.txt               # Search engine crawl rules
+├── sitemap.xml               # Site map for search indexing
+└── README.md                  # This file
 ```
 
 ## Known limitations
