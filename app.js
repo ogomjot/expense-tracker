@@ -261,6 +261,11 @@ function normalizeCurrencyCode(value, fallback = DEFAULT_CURRENCY) {
   return SUPPORTED_CURRENCIES.has(code) ? code : fallback;
 }
 
+function shouldPromptForCurrency(savedCurrency = "", dismissed = false) {
+  const candidate = String(savedCurrency ?? "").trim();
+  return candidate === "" && !dismissed;
+}
+
 function getTransactionCurrency(transaction, fallback = DEFAULT_CURRENCY) {
   return normalizeCurrencyCode(transaction && transaction.currency, fallback);
 }
@@ -757,7 +762,8 @@ class ExpenseTracker {
     this.customCategories = this.loadCustomCategories();
     this.budgets = this.loadBudgets();
     this.currency = normalizeCurrencyCode(
-      safeReadStorage("currency", DEFAULT_CURRENCY),
+      safeReadStorage("currency", ""),
+      DEFAULT_CURRENCY,
     );
     const savedExchangeRates = safeReadJson("exchangeRates", {});
     this.exchangeRates =
@@ -795,6 +801,7 @@ class ExpenseTracker {
     this.renderCategoriesDisplay();
     this.initDarkMode();
     this.initCurrencySelector();
+    this.initCurrencyPrompt();
     this.exchangeRateRefreshTimer = setInterval(
       () => this.refreshExchangeRates(),
       24 * 60 * 60 * 1000,
@@ -985,10 +992,82 @@ class ExpenseTracker {
   initCurrencySelector() {
     const select = document.getElementById("currency-select");
     if (!select) return;
-    select.value = this.currency;
+
+    const savedCurrency = safeReadStorage("currency", "");
+    const hasSavedCurrency =
+      typeof savedCurrency === "string" &&
+      savedCurrency.trim() !== "" &&
+      SUPPORTED_CURRENCIES.has(savedCurrency.trim().toUpperCase());
+
+    select.value = hasSavedCurrency ? savedCurrency.trim().toUpperCase() : "";
     select.addEventListener("change", () => {
       this.changeDisplayCurrency(select.value);
     });
+  }
+
+  initCurrencyPrompt() {
+    const modal = document.getElementById("currency-modal");
+    const select = document.getElementById("currency-modal-select");
+    const confirmButton = document.getElementById("currency-modal-confirm");
+    const dismissButton = document.getElementById("currency-modal-dismiss");
+
+    if (!modal || !select || !confirmButton || !dismissButton) return;
+
+    const promptDismissed = safeReadStorage("currencyPromptDismissed", "false") === "true";
+    const savedCurrency = safeReadStorage("currency", "");
+
+    if (!shouldPromptForCurrency(savedCurrency, promptDismissed)) {
+      modal.hidden = true;
+      return;
+    }
+
+    modal.hidden = false;
+    document.body.classList.add("currency-modal-open");
+
+    const close = () => {
+      modal.hidden = true;
+      document.body.classList.remove("currency-modal-open");
+    };
+
+    const onConfirm = () => {
+      const nextCurrency = normalizeCurrencyCode(select.value, "");
+      if (!SUPPORTED_CURRENCIES.has(nextCurrency)) {
+        select.focus();
+        return;
+      }
+      safeWriteStorage("currency", nextCurrency);
+      safeWriteStorage("currencyPromptDismissed", "true");
+      this.currency = nextCurrency;
+      if (document.getElementById("currency-select")) {
+        document.getElementById("currency-select").value = nextCurrency;
+      }
+      close();
+      this.render();
+    };
+
+    confirmButton.onclick = onConfirm;
+    dismissButton.onclick = () => {
+      safeWriteStorage("currencyPromptDismissed", "true");
+      close();
+    };
+    modal.onclick = (event) => {
+      if (event.target && event.target.dataset.modalDismiss === "true") {
+        safeWriteStorage("currencyPromptDismissed", "true");
+        close();
+      }
+    };
+  }
+
+  showCurrencyPromptForPreview() {
+    const modal = document.getElementById("currency-modal");
+    const select = document.getElementById("currency-modal-select");
+    if (!modal || !select) return false;
+
+    safeWriteStorage("currencyPromptDismissed", "false");
+    modal.hidden = false;
+    document.body.classList.add("currency-modal-open");
+    select.focus();
+    return true;
   }
 
   changeDisplayCurrency(nextCurrency) {
@@ -1782,15 +1861,15 @@ class ExpenseTracker {
 
     if (filteredTransactions.length === 0) {
       container.innerHTML = "";
-      emptyState?.classList.toggle("hidden", this.transactions.length === 0);
-      this.setCardCollapsed(
-        "transactions-section",
-        this.transactions.length === 0,
-      );
+      const hasNoTransactions = this.transactions.length === 0;
+      emptyState?.classList.toggle("hidden", false);
+      emptyState?.classList.toggle("no-data", hasNoTransactions);
+      this.setCardCollapsed("transactions-section", false);
       return;
     }
 
     emptyState?.classList.add("hidden");
+    emptyState?.classList.remove("no-data");
     this.setCardCollapsed("transactions-section", false);
     filteredTransactions.sort((a, b) =>
       String(b.date).localeCompare(String(a.date)),
@@ -1886,6 +1965,7 @@ class ExpenseTracker {
 
     if (typeof Chart === "undefined") {
       ctx.style.display = "none";
+      this.setChartEmptyState("expenseChart", "expenseChartIcon", true);
       this.updateChartIconVisibility("expenseChart", "expenseChartIcon");
       return;
     }
@@ -1899,11 +1979,12 @@ class ExpenseTracker {
       ctx.style.display = "none";
       const legendEl = document.getElementById("expense-chart-legend");
       if (legendEl) legendEl.innerHTML = "";
+      this.setChartEmptyState("expenseChart", "expenseChartIcon", true);
       this.updateChartIconVisibility("expenseChart", "expenseChartIcon");
-      this.setCardCollapsed("expense-chart-section", true);
       return;
     }
 
+    this.setChartEmptyState("expenseChart", "expenseChartIcon", false);
     this.setCardCollapsed("expense-chart-section", false);
     ctx.style.display = "block";
 
@@ -1956,6 +2037,7 @@ class ExpenseTracker {
 
     if (typeof Chart === "undefined") {
       ctx.style.display = "none";
+      this.setChartEmptyState("incomeChart", "incomeChartIcon", true);
       this.updateChartIconVisibility("incomeChart", "incomeChartIcon");
       return;
     }
@@ -1969,11 +2051,12 @@ class ExpenseTracker {
       ctx.style.display = "none";
       const legendEl = document.getElementById("income-chart-legend");
       if (legendEl) legendEl.innerHTML = "";
+      this.setChartEmptyState("incomeChart", "incomeChartIcon", true);
       this.updateChartIconVisibility("incomeChart", "incomeChartIcon");
-      this.setCardCollapsed("income-chart-section", true);
       return;
     }
 
+    this.setChartEmptyState("incomeChart", "incomeChartIcon", false);
     this.setCardCollapsed("income-chart-section", false);
     ctx.style.display = "block";
 
@@ -2196,6 +2279,7 @@ class ExpenseTracker {
 
     if (typeof Chart === "undefined") {
       canvas.style.display = "none";
+      this.setChartEmptyState("trendsChart", "trendsChartIcon", true);
       this.updateChartIconVisibility("trendsChart", "trendsChartIcon");
       return;
     }
@@ -2216,11 +2300,12 @@ class ExpenseTracker {
 
     if (Object.keys(monthlyData).length === 0) {
       canvas.style.display = "none";
+      this.setChartEmptyState("trendsChart", "trendsChartIcon", true);
       this.updateChartIconVisibility("trendsChart", "trendsChartIcon");
-      this.setCardCollapsed("trends-section", true);
       return;
     }
 
+    this.setChartEmptyState("trendsChart", "trendsChartIcon", false);
     this.setCardCollapsed("trends-section", false);
     canvas.style.display = "block";
 
@@ -2656,6 +2741,16 @@ class ExpenseTracker {
     this.updateChartIconVisibility("trendsChart", "trendsChartIcon");
   }
 
+  setChartEmptyState(canvasId, iconId, isEmpty) {
+    const canvas = document.getElementById(canvasId);
+    const icon = document.getElementById(iconId);
+    const wrapper = canvas?.closest(".chart-placeholder-wrapper");
+    if (!canvas || !icon || !wrapper) return;
+
+    wrapper.classList.toggle("is-empty", isEmpty);
+    icon.classList.toggle("hidden", isEmpty);
+  }
+
   updateChartIconVisibility(canvasId, iconId) {
     const canvas = document.getElementById(canvasId);
     const icon = document.getElementById(iconId);
@@ -2733,6 +2828,19 @@ if (typeof window !== "undefined") {
   window.convertAmount = convertAmount;
   window.getDisplayAmount = getDisplayAmount;
   window.getDisplayTransactions = getDisplayTransactions;
+  window.showCurrencyPrompt = () => {
+    if (window.app && typeof window.app.showCurrencyPromptForPreview === "function") {
+      return window.app.showCurrencyPromptForPreview();
+    }
+    const modal = document.getElementById("currency-modal");
+    const select = document.getElementById("currency-modal-select");
+    if (!modal || !select) return false;
+    localStorage.setItem("currencyPromptDismissed", "false");
+    modal.hidden = false;
+    document.body.classList.add("currency-modal-open");
+    select.focus();
+    return true;
+  };
 }
 
 if (typeof module !== "undefined") {
@@ -2756,6 +2864,7 @@ if (typeof module !== "undefined") {
     getDisplayTransactions,
     normalizeStoredTransactions,
     normalizeStoredBudgets,
+    shouldPromptForCurrency,
   };
 }
 

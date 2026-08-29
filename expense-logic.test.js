@@ -17,6 +17,9 @@ import {
   getDisplayAmount,
   getDisplayTransactions,
   ExpenseTracker,
+  normalizeStoredTransactions,
+  normalizeStoredBudgets,
+  shouldPromptForCurrency,
 } from "./app.js";
 
 describe("convertAmount", () => {
@@ -26,6 +29,62 @@ describe("convertAmount", () => {
 
   it("leaves invalid values unchanged", () => {
     expect(convertAmount(100, NaN)).toBe(100);
+  });
+});
+
+describe("currency prompts", () => {
+  it("asks for a currency only when no value has been saved yet", () => {
+    expect(shouldPromptForCurrency("", false)).toBe(true);
+    expect(shouldPromptForCurrency(" ", false)).toBe(true);
+    expect(shouldPromptForCurrency("USD", false)).toBe(false);
+    expect(shouldPromptForCurrency("", true)).toBe(false);
+  });
+});
+
+describe("stored data normalization", () => {
+  it("keeps valid amounts, defaults legacy currency, and drops malformed transactions", () => {
+    expect(
+      normalizeStoredTransactions([
+        { type: "expense", date: "2024-02-29", amount: 25 },
+        { type: "expense", date: "2024-02-30", amount: 10 },
+        { type: "unknown", date: "2024-02-01", amount: 5 },
+      ]),
+    ).toEqual([
+      {
+        type: "expense",
+        date: "2024-02-29",
+        amount: 25,
+        currency: "USD",
+      },
+    ]);
+  });
+
+  it("keeps only positive numeric budgets without changing their values", () => {
+    expect(
+      normalizeStoredBudgets({ food: "200", transport: 0, utilities: "bad" }),
+    ).toEqual({
+      food: 200,
+    });
+  });
+
+  it("rejects impossible backup dates and oversized backups", () => {
+    expect(normalizeBackupData({
+      transactions: [{ type: "expense", date: "2024-02-30", amount: 10 }],
+    }).transactions).toEqual([]);
+    expect(() => normalizeBackupData({
+      transactions: Array.from({ length: 5001 }, () => ({
+        type: "expense",
+        date: "2024-01-01",
+        amount: 1,
+      })),
+    })).toThrow("Backup contains too many transactions");
+  });
+
+  it("limits unsafe budget keys", () => {
+    expect(normalizeStoredBudgets({
+      ["x".repeat(41)]: 100,
+      food: 50,
+    })).toEqual({ food: 50 });
   });
 });
 
@@ -52,11 +111,25 @@ describe("display-only currency conversion", () => {
     });
   });
 
+  it("does not use zero or negative rates for display conversion", () => {
+    expect(getDisplayAmount(100, "USD", "EUR", 0)).toEqual({
+      amount: 100,
+      currency: "USD",
+      converted: false,
+    });
+    expect(getDisplayAmount(100, "USD", "EUR", -1)).toEqual({
+      amount: 100,
+      currency: "USD",
+      converted: false,
+    });
+  });
+
   it("preserves stored data through repeated A to B to A display changes", () => {
     const transactions = [{ id: 1, amount: 100, currency: "USD" }];
     const budgets = { food: 200 };
     const before = JSON.stringify({ transactions, budgets });
-    const resolver = (source, target) => source === "USD" && target === "EUR" ? 0.92 : 1.087;
+    const resolver = (source, target) =>
+      source === "USD" && target === "EUR" ? 0.92 : 1.087;
 
     getDisplayTransactions(transactions, "EUR", resolver);
     getDisplayTransactions(transactions, "USD", resolver);
@@ -134,9 +207,17 @@ describe("calculateTotals", () => {
       { type: "expense", amount: 40, date: "2024-03-01" },
     ];
 
-    expect(calculateTotals(transactions, false)).toEqual({ income: 100, expenses: 70, balance: 30 });
+    expect(calculateTotals(transactions, false)).toEqual({
+      income: 100,
+      expenses: 70,
+      balance: 30,
+    });
     expect(
-      calculateTotals(transactions, true, { type: "expense", dateFrom: "2024-02-01", dateTo: "2024-03-31" }),
+      calculateTotals(transactions, true, {
+        type: "expense",
+        dateFrom: "2024-02-01",
+        dateTo: "2024-03-31",
+      }),
     ).toEqual({ income: 0, expenses: 70, balance: -70 });
   });
 });
@@ -159,9 +240,9 @@ describe("getFilteredTransactions", () => {
       { type: "expense", date: "2024-01-20" },
     ];
 
-    expect(getFilteredTransactions(transactions, { dateFrom: "2024-01-10" })).toEqual([
-      { type: "expense", date: "2024-01-20" },
-    ]);
+    expect(
+      getFilteredTransactions(transactions, { dateFrom: "2024-01-10" }),
+    ).toEqual([{ type: "expense", date: "2024-01-20" }]);
   });
 
   it("filters by date to", () => {
@@ -170,9 +251,9 @@ describe("getFilteredTransactions", () => {
       { type: "expense", date: "2024-01-20" },
     ];
 
-    expect(getFilteredTransactions(transactions, { dateTo: "2024-01-10" })).toEqual([
-      { type: "income", date: "2024-01-05" },
-    ]);
+    expect(
+      getFilteredTransactions(transactions, { dateTo: "2024-01-10" }),
+    ).toEqual([{ type: "income", date: "2024-01-05" }]);
   });
 
   it("combines type and date filters", () => {
@@ -202,14 +283,32 @@ describe("getFilteredTransactions", () => {
 
   it("filters by category and description search", () => {
     const transactions = [
-      { type: "expense", category: "food", description: "Weekly groceries", date: "2024-01-05" },
-      { type: "expense", category: "transport", description: "Train ticket", date: "2024-01-06" },
-      { type: "income", category: "salary", description: "Monthly salary", date: "2024-01-07" },
+      {
+        type: "expense",
+        category: "food",
+        description: "Weekly groceries",
+        date: "2024-01-05",
+      },
+      {
+        type: "expense",
+        category: "transport",
+        description: "Train ticket",
+        date: "2024-01-06",
+      },
+      {
+        type: "income",
+        category: "salary",
+        description: "Monthly salary",
+        date: "2024-01-07",
+      },
     ];
 
-    expect(getFilteredTransactions(transactions, { category: "food", search: "GROCER" })).toEqual([
-      transactions[0],
-    ]);
+    expect(
+      getFilteredTransactions(transactions, {
+        category: "food",
+        search: "GROCER",
+      }),
+    ).toEqual([transactions[0]]);
   });
 });
 
@@ -232,24 +331,32 @@ describe("csvField", () => {
 
 describe("CSV statement import", () => {
   it("parses quoted commas and CRLF rows", () => {
-    expect(parseCsv('Date,Description,Amount,Type\r\n01/02/2024,"Cafe, lunch","₹1,200.50",Debit\r\n')).toEqual({
+    expect(
+      parseCsv(
+        'Date,Description,Amount,Type\r\n01/02/2024,"Cafe, lunch","₹1,200.50",Debit\r\n',
+      ),
+    ).toEqual({
       headers: ["Date", "Description", "Amount", "Type"],
       rows: [["01/02/2024", "Cafe, lunch", "₹1,200.50", "Debit"]],
     });
   });
 
   it("detects bank columns and normalizes debit rows", () => {
-    const parsed = parseCsv("Date,Narration,Debit,Credit,Balance\n31/12/2024,Groceries,2, ,100\n");
+    const parsed = parseCsv(
+      "Date,Narration,Debit,Credit,Balance\n31/12/2024,Groceries,2, ,100\n",
+    );
     const mapping = detectImportFormat(parsed.headers);
     expect(mapping.source).toBe("bank");
-    expect(normalizeImportedRows(parsed, mapping)).toEqual([{
-      date: "2024-12-31",
-      type: "expense",
-      category: "other",
-      description: "Groceries",
-      amount: 2,
-      currency: "USD",
-    }]);
+    expect(normalizeImportedRows(parsed, mapping)).toEqual([
+      {
+        date: "2024-12-31",
+        type: "expense",
+        category: "other",
+        description: "Groceries",
+        amount: 2,
+        currency: "USD",
+      },
+    ]);
   });
 });
 
@@ -343,7 +450,13 @@ describe("getCategoryTotals", () => {
 describe("budget alerts", () => {
   it("fires an 80% warning once for a category in the current period", () => {
     const transactions = [
-      { id: 1, type: "expense", category: "food", amount: 80, date: "2024-08-05" },
+      {
+        id: 1,
+        type: "expense",
+        category: "food",
+        amount: 80,
+        date: "2024-08-05",
+      },
     ];
     const budgets = { food: 100 };
     const period = { dateFrom: "2024-08-01", dateTo: "2024-08-31" };
@@ -351,13 +464,30 @@ describe("budget alerts", () => {
     const alerts = evaluateBudgetAlerts(transactions, budgets, period, {});
 
     expect(alerts).toEqual([
-      { category: "food", level: "warning", message: "You've used 80% of your Food budget", spend: 80, budget: 100 },
+      {
+        category: "food",
+        level: "warning",
+        message: "You've used 80% of your Food budget",
+        spend: 80,
+        budget: 100,
+      },
     ]);
 
-    const repeats = evaluateBudgetAlerts([
-      ...transactions,
-      { id: 2, type: "expense", category: "food", amount: 10, date: "2024-08-06" },
-    ], budgets, period, { food: { warning: true, alert: false } });
+    const repeats = evaluateBudgetAlerts(
+      [
+        ...transactions,
+        {
+          id: 2,
+          type: "expense",
+          category: "food",
+          amount: 10,
+          date: "2024-08-06",
+        },
+      ],
+      budgets,
+      period,
+      { food: { warning: true, alert: false } },
+    );
 
     expect(repeats).toEqual([]);
   });
@@ -365,18 +495,52 @@ describe("budget alerts", () => {
   it("fires the 100% alert once and does not double-fire on later transactions", () => {
     const period = { dateFrom: "2024-08-01", dateTo: "2024-08-31" };
     const budgets = { food: 100 };
-    const initial = evaluateBudgetAlerts([
-      { id: 1, type: "expense", category: "food", amount: 100, date: "2024-08-10" },
-    ], budgets, period, {});
+    const initial = evaluateBudgetAlerts(
+      [
+        {
+          id: 1,
+          type: "expense",
+          category: "food",
+          amount: 100,
+          date: "2024-08-10",
+        },
+      ],
+      budgets,
+      period,
+      {},
+    );
 
     expect(initial).toEqual([
-      { category: "food", level: "alert", message: "You've used 100% of your Food budget", spend: 100, budget: 100 },
+      {
+        category: "food",
+        level: "alert",
+        message: "You've used 100% of your Food budget",
+        spend: 100,
+        budget: 100,
+      },
     ]);
 
-    const repeat = evaluateBudgetAlerts([
-      { id: 1, type: "expense", category: "food", amount: 100, date: "2024-08-10" },
-      { id: 2, type: "expense", category: "food", amount: 10, date: "2024-08-12" },
-    ], budgets, period, { food: { warning: true, alert: true } });
+    const repeat = evaluateBudgetAlerts(
+      [
+        {
+          id: 1,
+          type: "expense",
+          category: "food",
+          amount: 100,
+          date: "2024-08-10",
+        },
+        {
+          id: 2,
+          type: "expense",
+          category: "food",
+          amount: 10,
+          date: "2024-08-12",
+        },
+      ],
+      budgets,
+      period,
+      { food: { warning: true, alert: true } },
+    );
 
     expect(repeat).toEqual([]);
   });
@@ -385,24 +549,63 @@ describe("budget alerts", () => {
     const period = { dateFrom: "2024-08-01", dateTo: "2024-08-31" };
     const budgets = { food: 100, transport: 50 };
     const importTransactions = [
-      { id: 1, type: "expense", category: "food", amount: 50, date: "2024-08-03" },
-      { id: 2, type: "expense", category: "food", amount: 60, date: "2024-08-15" },
-      { id: 3, type: "expense", category: "transport", amount: 60, date: "2024-08-20" },
+      {
+        id: 1,
+        type: "expense",
+        category: "food",
+        amount: 50,
+        date: "2024-08-03",
+      },
+      {
+        id: 2,
+        type: "expense",
+        category: "food",
+        amount: 60,
+        date: "2024-08-15",
+      },
+      {
+        id: 3,
+        type: "expense",
+        category: "transport",
+        amount: 60,
+        date: "2024-08-20",
+      },
     ];
 
-    const alerts = evaluateBudgetAlerts(importTransactions, budgets, period, {});
+    const alerts = evaluateBudgetAlerts(
+      importTransactions,
+      budgets,
+      period,
+      {},
+    );
 
     expect(alerts).toEqual([
-      { category: "food", level: "alert", message: "You've used 110% of your Food budget", spend: 110, budget: 100 },
-      { category: "transport", level: "alert", message: "You've used 120% of your Transport budget", spend: 60, budget: 50 },
+      {
+        category: "food",
+        level: "alert",
+        message: "You've used 110% of your Food budget",
+        spend: 110,
+        budget: 100,
+      },
+      {
+        category: "transport",
+        level: "alert",
+        message: "You've used 120% of your Transport budget",
+        spend: 60,
+        budget: 50,
+      },
     ]);
   });
 
   it("calculates the budget progress indicator state for the current period", () => {
-    const spend = getCategorySpendForPeriod([
-      { type: "expense", category: "food", amount: 80, date: "2024-08-05" },
-      { type: "expense", category: "food", amount: 10, date: "2024-08-12" },
-    ], "food", { dateFrom: "2024-08-01", dateTo: "2024-08-31" });
+    const spend = getCategorySpendForPeriod(
+      [
+        { type: "expense", category: "food", amount: 80, date: "2024-08-05" },
+        { type: "expense", category: "food", amount: 10, date: "2024-08-12" },
+      ],
+      "food",
+      { dateFrom: "2024-08-01", dateTo: "2024-08-31" },
+    );
 
     expect(spend).toBe(90);
     expect(getBudgetProgressState(90, 100)).toEqual({
@@ -441,6 +644,40 @@ describe("budget alerts", () => {
       dateFrom: "2024-08-01",
       dateTo: "2024-08-31",
     });
+  });
+
+  it("supports an open-ended date-from budget period", () => {
+    const spend = getCategorySpendForPeriod(
+      [
+        { type: "expense", category: "food", amount: 20, date: "2024-08-15" },
+        { type: "expense", category: "food", amount: 30, date: "2024-07-31" },
+      ],
+      "food",
+      { dateFrom: "2024-08-01" },
+    );
+
+    expect(spend).toBe(20);
+  });
+
+  it("converts transactions before comparing them with a budget alert", () => {
+    const alerts = evaluateBudgetAlerts(
+      [
+        {
+          type: "expense",
+          category: "food",
+          amount: 100,
+          currency: "EUR",
+          date: "2024-08-05",
+        },
+      ],
+      { food: 110 },
+      { dateFrom: "2024-08-01", dateTo: "2024-08-31" },
+      {},
+      () => 120,
+    );
+
+    expect(alerts[0].level).toBe("alert");
+    expect(alerts[0].spend).toBe(120);
   });
 
   it("recalculates the indicator after removing a transaction from the period", () => {
