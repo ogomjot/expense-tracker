@@ -1119,16 +1119,42 @@ class ExpenseTracker {
       return Number(cached.rate);
     }
 
-    const fetchRate = async (retryCount = 0) => {
+    const PRIMARY_PROVIDER = "https://api.frankfurter.app";
+    const FALLBACK_PROVIDER = "https://api.frankfurter.dev/v1";
+    const providerUrls = [
+      `${PRIMARY_PROVIDER}/latest?from=${encodeURIComponent(baseCurrency)}&to=${encodeURIComponent(targetCurrency)}`,
+      `${FALLBACK_PROVIDER}/latest?from=${encodeURIComponent(baseCurrency)}&to=${encodeURIComponent(targetCurrency)}`,
+    ];
+
+    const resolveRateFromPayload = (data) => {
+      if (!data || typeof data !== "object") return null;
+      const candidate =
+        data.rates &&
+        typeof data.rates === "object" &&
+        !Array.isArray(data.rates)
+          ? Number(data.rates[targetCurrency])
+          : Number.NaN;
+      return Number.isFinite(candidate) && candidate > 0 ? candidate : null;
+    };
+
+    const fetchRate = async (providerIndex = 0, retryCount = 0) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       try {
-        const response = await fetch(
-          `https://api.frankfurter.app/latest?from=${encodeURIComponent(baseCurrency)}&to=${encodeURIComponent(targetCurrency)}`,
-          { signal: controller.signal },
-        );
+        const url = providerUrls[providerIndex];
+        if (!url) {
+          if (
+            cached &&
+            Number.isFinite(Number(cached.rate)) &&
+            Number(cached.rate) > 0
+          ) {
+            return Number(cached.rate);
+          }
+          throw new Error("Exchange rate request failed: no provider available");
+        }
 
+        const response = await fetch(url, { signal: controller.signal });
         if (!response.ok) {
           if (
             cached &&
@@ -1137,13 +1163,16 @@ class ExpenseTracker {
           ) {
             return Number(cached.rate);
           }
-          if (retryCount === 0) return fetchRate(1);
+          const nextProviderIndex = providerIndex + 1;
+          if (retryCount === 0 && nextProviderIndex < providerUrls.length) {
+            return fetchRate(nextProviderIndex, 1);
+          }
           throw new Error(`Exchange rate request failed: ${response.status}`);
         }
 
         const data = await response.json();
-        const rate = Number(data.rates && data.rates[targetCurrency]);
-        if (!Number.isFinite(rate) || rate <= 0) {
+        const rate = resolveRateFromPayload(data);
+        if (rate === null) {
           if (
             cached &&
             Number.isFinite(Number(cached.rate)) &&
@@ -1151,7 +1180,10 @@ class ExpenseTracker {
           ) {
             return Number(cached.rate);
           }
-          if (retryCount === 0) return fetchRate(1);
+          const nextProviderIndex = providerIndex + 1;
+          if (retryCount === 0 && nextProviderIndex < providerUrls.length) {
+            return fetchRate(nextProviderIndex, 1);
+          }
           throw new Error("Exchange rate was missing");
         }
 
@@ -1159,8 +1191,12 @@ class ExpenseTracker {
         safeWriteJson("exchangeRates", this.exchangeRates);
         return rate;
       } catch (error) {
-        if (retryCount === 0 && !(error && error.name === "AbortError")) {
-          return fetchRate(1);
+        if (
+          retryCount === 0 &&
+          !(error && error.name === "AbortError") &&
+          providerIndex + 1 < providerUrls.length
+        ) {
+          return fetchRate(providerIndex + 1, 1);
         }
         if (
           cached &&

@@ -159,6 +159,33 @@ describe("display-only currency conversion", () => {
     }
   });
 
+  it("tries the backup Frankfurter endpoint before giving up on a live rate", async () => {
+    const tracker = Object.create(ExpenseTracker.prototype);
+    tracker.currency = "EUR";
+    tracker.exchangeRates = {};
+    tracker.pendingExchangeRates = {};
+    tracker.toast = vi.fn();
+    tracker.render = vi.fn();
+    const previousFetch = globalThis.fetch;
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("primary endpoint unavailable"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ rates: { EUR: 0.86281 } }),
+      });
+    globalThis.fetch = fetchMock;
+
+    try {
+      await expect(tracker.getExchangeRate("USD", "EUR")).resolves.toBeCloseTo(0.86281);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0][0]).toContain("api.frankfurter.app");
+      expect(fetchMock.mock.calls[1][0]).toContain("api.frankfurter.dev");
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
   it("preserves stored data through repeated A to B to A display changes", () => {
     const transactions = [{ id: 1, amount: 100, currency: "USD" }];
     const budgets = { food: 200 };
