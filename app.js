@@ -214,6 +214,31 @@ function convertAmount(amount, rate) {
     : numericAmount;
 }
 
+const CHART_COLOR_PALETTE = [
+  "#e74c3c",
+  "#27ae60",
+  "#3498db",
+  "#f39c12",
+  "#8e44ad",
+  "#16a085",
+  "#d35400",
+  "#1abc9c",
+  "#e67e22",
+  "#2ecc71",
+  "#9b59b6",
+  "#2980b9",
+];
+
+function getChartPalette(categories = []) {
+  const names = Array.isArray(categories)
+    ? categories.filter((category) => typeof category === "string")
+    : [];
+
+  return names.map(
+    (_, index) => CHART_COLOR_PALETTE[index % CHART_COLOR_PALETTE.length],
+  );
+}
+
 const DEFAULT_CURRENCY = "USD";
 const EXCHANGE_RATE_CACHE_TTL = 60 * 60 * 1000;
 const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
@@ -1094,34 +1119,63 @@ class ExpenseTracker {
       return Number(cached.rate);
     }
 
-    const response = await fetch(
-      `https://api.frankfurter.app/latest?from=${encodeURIComponent(baseCurrency)}&to=${encodeURIComponent(targetCurrency)}`,
-    );
-    if (!response.ok) {
-      if (
-        cached &&
-        Number.isFinite(Number(cached.rate)) &&
-        Number(cached.rate) > 0
-      )
-        return Number(cached.rate);
-      throw new Error(`Exchange rate request failed: ${response.status}`);
-    }
+    const fetchRate = async (retryCount = 0) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-    const data = await response.json();
-    const rate = Number(data.rates && data.rates[targetCurrency]);
-    if (!Number.isFinite(rate) || rate <= 0) {
-      if (
-        cached &&
-        Number.isFinite(Number(cached.rate)) &&
-        Number(cached.rate) > 0
-      )
-        return Number(cached.rate);
-      throw new Error("Exchange rate was missing");
-    }
+      try {
+        const response = await fetch(
+          `https://api.frankfurter.app/latest?from=${encodeURIComponent(baseCurrency)}&to=${encodeURIComponent(targetCurrency)}`,
+          { signal: controller.signal },
+        );
 
-    this.exchangeRates[cacheKey] = { rate, timestamp: Date.now() };
-    safeWriteJson("exchangeRates", this.exchangeRates);
-    return rate;
+        if (!response.ok) {
+          if (
+            cached &&
+            Number.isFinite(Number(cached.rate)) &&
+            Number(cached.rate) > 0
+          ) {
+            return Number(cached.rate);
+          }
+          if (retryCount === 0) return fetchRate(1);
+          throw new Error(`Exchange rate request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const rate = Number(data.rates && data.rates[targetCurrency]);
+        if (!Number.isFinite(rate) || rate <= 0) {
+          if (
+            cached &&
+            Number.isFinite(Number(cached.rate)) &&
+            Number(cached.rate) > 0
+          ) {
+            return Number(cached.rate);
+          }
+          if (retryCount === 0) return fetchRate(1);
+          throw new Error("Exchange rate was missing");
+        }
+
+        this.exchangeRates[cacheKey] = { rate, timestamp: Date.now() };
+        safeWriteJson("exchangeRates", this.exchangeRates);
+        return rate;
+      } catch (error) {
+        if (retryCount === 0 && !(error && error.name === "AbortError")) {
+          return fetchRate(1);
+        }
+        if (
+          cached &&
+          Number.isFinite(Number(cached.rate)) &&
+          Number(cached.rate) > 0
+        ) {
+          return Number(cached.rate);
+        }
+        throw error;
+      } finally {
+        clearTimeout(timeoutId);
+      }
+    };
+
+    return fetchRate();
   }
 
   getRateForDisplay(sourceCurrency, targetCurrency) {
@@ -1144,7 +1198,7 @@ class ExpenseTracker {
         .then(() => this.render())
         .catch((error) => {
           this.toast(
-            "Exchange rates are unavailable; showing the original amount",
+            "Live rates unavailable — showing original currency",
             "warning",
           );
           console.warn(
@@ -1976,21 +2030,11 @@ class ExpenseTracker {
     this.setCardCollapsed("expense-chart-section", false);
     ctx.style.display = "block";
 
-    const colors = [
-      "#e74c3c",
-      "#e67e22",
-      "#f39c12",
-      "#d35400",
-      "#c0392b",
-      "#a93226",
-    ];
+    const colors = getChartPalette(Object.keys(categoryTotals));
     if (this.expenseChart) {
       this.expenseChart.data.labels = labels;
       this.expenseChart.data.datasets[0].data = data;
-      this.expenseChart.data.datasets[0].backgroundColor = colors.slice(
-        0,
-        data.length,
-      );
+      this.expenseChart.data.datasets[0].backgroundColor = colors;
       this.expenseChart.update("none");
     } else {
       this.expenseChart = new Chart(ctx, {
@@ -2000,7 +2044,7 @@ class ExpenseTracker {
           datasets: [
             {
               data,
-              backgroundColor: colors.slice(0, data.length),
+              backgroundColor: colors,
               borderColor: "#fff",
               borderWidth: 2,
             },
@@ -2048,21 +2092,11 @@ class ExpenseTracker {
     this.setCardCollapsed("income-chart-section", false);
     ctx.style.display = "block";
 
-    const colors = [
-      "#27ae60",
-      "#2ecc71",
-      "#1abc9c",
-      "#16a085",
-      "#229954",
-      "#1e8449",
-    ];
+    const colors = getChartPalette(Object.keys(categoryTotals));
     if (this.incomeChart) {
       this.incomeChart.data.labels = labels;
       this.incomeChart.data.datasets[0].data = data;
-      this.incomeChart.data.datasets[0].backgroundColor = colors.slice(
-        0,
-        data.length,
-      );
+      this.incomeChart.data.datasets[0].backgroundColor = colors;
       this.incomeChart.update("none");
     } else {
       this.incomeChart = new Chart(ctx, {
@@ -2072,7 +2106,7 @@ class ExpenseTracker {
           datasets: [
             {
               data,
-              backgroundColor: colors.slice(0, data.length),
+              backgroundColor: colors,
               borderColor: "#fff",
               borderWidth: 2,
             },
@@ -2850,6 +2884,7 @@ if (typeof module !== "undefined") {
     convertAmount,
     getDisplayAmount,
     getDisplayTransactions,
+    getChartPalette,
     normalizeStoredTransactions,
     normalizeStoredBudgets,
     shouldPromptForCurrency,

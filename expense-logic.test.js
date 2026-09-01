@@ -69,23 +69,29 @@ describe("stored data normalization", () => {
   });
 
   it("rejects impossible backup dates and oversized backups", () => {
-    expect(normalizeBackupData({
-      transactions: [{ type: "expense", date: "2024-02-30", amount: 10 }],
-    }).transactions).toEqual([]);
-    expect(() => normalizeBackupData({
-      transactions: Array.from({ length: 5001 }, () => ({
-        type: "expense",
-        date: "2024-01-01",
-        amount: 1,
-      })),
-    })).toThrow("Backup contains too many transactions");
+    expect(
+      normalizeBackupData({
+        transactions: [{ type: "expense", date: "2024-02-30", amount: 10 }],
+      }).transactions,
+    ).toEqual([]);
+    expect(() =>
+      normalizeBackupData({
+        transactions: Array.from({ length: 5001 }, () => ({
+          type: "expense",
+          date: "2024-01-01",
+          amount: 1,
+        })),
+      }),
+    ).toThrow("Backup contains too many transactions");
   });
 
   it("limits unsafe budget keys", () => {
-    expect(normalizeStoredBudgets({
-      ["x".repeat(41)]: 100,
-      food: 50,
-    })).toEqual({ food: 50 });
+    expect(
+      normalizeStoredBudgets({
+        ["x".repeat(41)]: 100,
+        food: 50,
+      }),
+    ).toEqual({ food: 50 });
   });
 });
 
@@ -137,7 +143,7 @@ describe("display-only currency conversion", () => {
 
     try {
       const display = tracker.getDisplayValue(100, "USD");
-      await Promise.resolve();
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(display).toEqual({
         amount: 100,

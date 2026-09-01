@@ -2036,6 +2036,22 @@ html.dark .category-tag .remove-btn:hover {
   max-width: 320px;
 }
 
+@media (max-width: 640px) {
+  #toast-container {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    max-width: none;
+  }
+
+  .toast {
+    width: 100%;
+    max-width: none;
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+}
+
 .import-drop-zone {
   border: 1px dashed #78909c;
   border-radius: 10px;
