@@ -1000,8 +1000,8 @@ class ExpenseTracker {
       SUPPORTED_CURRENCIES.has(savedCurrency.trim().toUpperCase());
 
     select.value = hasSavedCurrency ? savedCurrency.trim().toUpperCase() : "";
-    select.addEventListener("change", () => {
-      this.changeDisplayCurrency(select.value);
+    select.addEventListener("change", async () => {
+      await this.changeDisplayCurrency(select.value);
     });
   }
 
@@ -1070,10 +1070,11 @@ class ExpenseTracker {
     return true;
   }
 
-  changeDisplayCurrency(nextCurrency) {
+  async changeDisplayCurrency(nextCurrency) {
     if (!SUPPORTED_CURRENCIES.has(nextCurrency)) return false;
     this.currency = nextCurrency;
     safeWriteStorage("currency", this.currency);
+    await this.refreshExchangeRates();
     this.render();
     return true;
   }
@@ -1175,9 +1176,10 @@ class ExpenseTracker {
       currenciesInUse.add(getTransactionCurrency(transaction)),
     );
     Object.keys(this.budgets).forEach((category) => {
-      currenciesInUse.add(
-        normalizeCurrencyCode(this.budgetCurrencies[category]),
-      );
+      const budgetCurrency = this.budgetCurrencies[category];
+      if (budgetCurrency) {
+        currenciesInUse.add(normalizeCurrencyCode(budgetCurrency));
+      }
     });
 
     await Promise.all(
@@ -1785,15 +1787,12 @@ class ExpenseTracker {
           transaction.amount,
           getTransactionCurrency(transaction),
         );
-        if (!display.converted) {
-          return { ...totals, conversionUnavailable: true };
-        }
         if (transaction.type === "income") totals.income += display.amount;
         else if (transaction.type === "expense")
           totals.expenses += display.amount;
         return { ...totals, balance: totals.income - totals.expenses };
       },
-      { income: 0, expenses: 0, balance: 0, conversionUnavailable: false },
+      { income: 0, expenses: 0, balance: 0 },
     );
   }
 
@@ -1824,31 +1823,20 @@ class ExpenseTracker {
 
   updateSummary() {
     const hasFilters = Object.values(this.getFilterState()).some(Boolean);
-    const { income, expenses, balance, conversionUnavailable } =
+    const { income, expenses, balance } =
       this.calculateDisplayTotals(hasFilters);
 
     const totalIncomeEl = document.getElementById("total-income");
     const totalExpensesEl = document.getElementById("total-expenses");
     const balanceEl = document.getElementById("balance");
 
-    const unavailableLabel = "Rate unavailable";
-    if (totalIncomeEl)
-      totalIncomeEl.textContent = conversionUnavailable
-        ? unavailableLabel
-        : this.formatCurrency(income);
-    if (totalExpensesEl)
-      totalExpensesEl.textContent = conversionUnavailable
-        ? unavailableLabel
-        : this.formatCurrency(expenses);
+    if (totalIncomeEl) totalIncomeEl.textContent = this.formatCurrency(income);
+    if (totalExpensesEl) totalExpensesEl.textContent = this.formatCurrency(expenses);
     if (balanceEl) {
-      balanceEl.textContent = conversionUnavailable
-        ? unavailableLabel
-        : this.formatCurrency(balance);
+      balanceEl.textContent = this.formatCurrency(balance);
       balanceEl.classList.remove("positive", "negative");
-      if (!conversionUnavailable) {
-        if (balance < 0) balanceEl.classList.add("negative");
-        else if (balance > 0) balanceEl.classList.add("positive");
-      }
+      if (balance < 0) balanceEl.classList.add("negative");
+      else if (balance > 0) balanceEl.classList.add("positive");
     }
   }
 

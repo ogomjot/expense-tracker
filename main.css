@@ -595,19 +595,22 @@ html.dark .advanced-toggle:active {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .header-control-group {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   padding: 4px 6px;
   border-radius: 999px;
   background: rgba(22, 40, 57, 0.03);
   border: 1px solid rgba(22, 40, 57, 0.08);
+  max-width: 100%;
+  min-width: 0;
 }
 
 html.dark .header-control-group {
@@ -652,6 +655,8 @@ html.dark .settings-mode-label {
   border-radius: 999px;
   padding: 4px 8px 4px 10px;
   min-height: 34px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .currency-picker-icon {
@@ -683,6 +688,9 @@ html.dark .settings-mode-label {
   outline: none;
   padding-right: 2px;
   max-width: 110px;
+  min-width: 0;
+  width: auto;
+  flex: 1 1 auto;
 }
 
 html.dark .currency-picker {
@@ -853,6 +861,31 @@ html.dark .settings-toggle-row:hover {
 }
 
 @media (max-width: 640px) {
+  .header-tools {
+    width: 100%;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .header-control-group {
+    flex: 1 1 auto;
+    justify-content: space-between;
+    min-width: 0;
+  }
+
+  .currency-picker {
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .currency-picker select {
+    max-width: 100px;
+  }
+
+  .settings-toggle-row {
+    flex-shrink: 0;
+  }
+
   @supports (column-count: 1) {
     .main-grid {
       columns: 1;

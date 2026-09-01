@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   calculateTotals,
   getFilteredTransactions,
@@ -16,6 +16,7 @@ import {
   convertAmount,
   getDisplayAmount,
   getDisplayTransactions,
+  getChartPalette,
   ExpenseTracker,
   normalizeStoredTransactions,
   normalizeStoredBudgets,
@@ -124,6 +125,34 @@ describe("display-only currency conversion", () => {
     });
   });
 
+  it("falls back to the original amount and currency and shows a toast when a live rate fails with no cache", async () => {
+    const tracker = Object.create(ExpenseTracker.prototype);
+    tracker.currency = "EUR";
+    tracker.exchangeRates = {};
+    tracker.pendingExchangeRates = {};
+    tracker.toast = vi.fn();
+    tracker.render = vi.fn();
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("network down"));
+
+    try {
+      const display = tracker.getDisplayValue(100, "USD");
+      await Promise.resolve();
+
+      expect(display).toEqual({
+        amount: 100,
+        currency: "USD",
+        converted: false,
+      });
+      expect(tracker.toast).toHaveBeenCalledWith(
+        "Live rates unavailable — showing original currency",
+        "warning",
+      );
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+
   it("preserves stored data through repeated A to B to A display changes", () => {
     const transactions = [{ id: 1, amount: 100, currency: "USD" }];
     const budgets = { food: 200 };
@@ -137,27 +166,47 @@ describe("display-only currency conversion", () => {
     expect(JSON.stringify({ transactions, budgets })).toBe(before);
   });
 
-  it("does not mutate stored data when the display currency changes", () => {
+  it("does not mutate stored data when the display currency changes", async () => {
     const tracker = Object.create(ExpenseTracker.prototype);
     tracker.currency = "USD";
     tracker.render = () => {};
+    tracker.refreshExchangeRates = async () => {};
     const transactions = [{ id: 1, amount: 100, currency: "USD" }];
     const budgets = { food: 200 };
     tracker.transactions = transactions;
     tracker.budgets = budgets;
+    tracker.budgetCurrencies = { food: "USD" };
     const before = JSON.stringify({ transactions, budgets });
 
     const previousStorage = globalThis.localStorage;
     globalThis.localStorage = { setItem: () => {} };
     try {
-      tracker.changeDisplayCurrency("EUR");
-      tracker.changeDisplayCurrency("USD");
+      await tracker.changeDisplayCurrency("EUR");
+      await tracker.changeDisplayCurrency("USD");
     } finally {
       if (previousStorage === undefined) delete globalThis.localStorage;
       else globalThis.localStorage = previousStorage;
     }
 
     expect(JSON.stringify({ transactions, budgets })).toBe(before);
+  });
+});
+
+describe("chart palette", () => {
+  it("returns a distinct color for each category in a deterministic palette", () => {
+    const colors = getChartPalette([
+      "food",
+      "transport",
+      "utilities",
+      "entertainment",
+      "shopping",
+      "travel",
+      "health",
+    ]);
+
+    expect(colors).toHaveLength(7);
+    expect(new Set(colors).size).toBe(7);
+    expect(colors[0]).toBe(getChartPalette(["food"])[0]);
   });
 });
 
