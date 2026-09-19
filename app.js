@@ -1378,6 +1378,7 @@ class ExpenseTracker {
         const section = document.getElementById("trends-section");
         if (!section) return;
         const expanded = section.classList.toggle("is-expanded");
+        document.body.classList.toggle("chart-modal-open", expanded);
         expandButton.setAttribute("aria-expanded", String(expanded));
         expandButton.textContent = expanded ? "↙" : "↗";
         expandButton.title = expanded ? "Collapse chart" : "Expand chart";
@@ -2433,6 +2434,9 @@ class ExpenseTracker {
 
     const expenseData = sortedDays.map((day) => dailyData[day].expense);
     const incomeData = sortedDays.map((day) => dailyData[day].income);
+    const gridColor = document.documentElement.classList.contains("dark")
+      ? "rgba(255, 255, 255, 0.22)"
+      : "rgba(0, 0, 0, 0.22)";
     const labels = sortedDays.map((day) => {
       const [year, month, dayOfMonth] = day.split("-");
       return new Date(year, month - 1, dayOfMonth).toLocaleDateString("en-US", {
@@ -2447,10 +2451,12 @@ class ExpenseTracker {
       this.trendsChart.data.datasets[1].data = incomeData;
       this.trendsChart.data.datasets.forEach((dataset) => {
         dataset.borderWidth = 1;
-        dataset.pointRadius = 1;
-        dataset.pointHoverRadius = 4;
+        dataset.pointRadius = 2;
+        dataset.pointHoverRadius = 5;
         dataset.pointBorderWidth = 0;
       });
+      this.trendsChart.options.scales.x.grid.color = gridColor;
+      this.trendsChart.options.scales.y.grid.color = gridColor;
       this.trendsChart.update("none");
     } else {
       this.trendsChart = new Chart(canvas, {
@@ -2464,13 +2470,15 @@ class ExpenseTracker {
               borderColor: "#e74c3c",
               backgroundColor: "#e74c3c",
               borderWidth: 1,
-              pointRadius: 1,
-              pointHoverRadius: 4,
+              pointRadius: 2,
+              pointHoverRadius: 5,
               pointBackgroundColor: "#e74c3c",
               pointBorderColor: "#ffffff",
               pointBorderWidth: 0,
               tension: 0,
               fill: false,
+              showLine: true,
+              spanGaps: true,
             },
             {
               label: "Income",
@@ -2478,13 +2486,15 @@ class ExpenseTracker {
               borderColor: "#27ae60",
               backgroundColor: "#27ae60",
               borderWidth: 1,
-              pointRadius: 1,
-              pointHoverRadius: 4,
+              pointRadius: 2,
+              pointHoverRadius: 5,
               pointBackgroundColor: "#27ae60",
               pointBorderColor: "#ffffff",
               pointBorderWidth: 0,
               tension: 0,
               fill: false,
+              showLine: true,
+              spanGaps: true,
             },
           ],
         },
@@ -2493,8 +2503,19 @@ class ExpenseTracker {
           maintainAspectRatio: false,
           plugins: { legend: { display: true } },
           scales: {
+            x: {
+              grid: { color: gridColor },
+              offset: false,
+              ticks: {
+                autoSkip: true,
+                maxTicksLimit: 15,
+                maxRotation: 0,
+                minRotation: 0,
+              },
+            },
             y: {
               beginAtZero: true,
+              grid: { color: gridColor },
               ticks: { callback: (value) => this.formatCurrency(value) },
             },
           },
