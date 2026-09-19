@@ -413,6 +413,11 @@ html.dark .summary-card-balance:hover {
   height: 480px !important;
 }
 
+#trendsChart {
+  width: 100% !important;
+  height: 300px !important;
+}
+
 html.dark .trend-nav-btn {
   border-color: #3a4453;
   background: #1f2733;

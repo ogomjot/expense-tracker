@@ -2445,6 +2445,12 @@ class ExpenseTracker {
       this.trendsChart.data.labels = labels;
       this.trendsChart.data.datasets[0].data = expenseData;
       this.trendsChart.data.datasets[1].data = incomeData;
+      this.trendsChart.data.datasets.forEach((dataset) => {
+        dataset.borderWidth = 3;
+        dataset.pointRadius = 3;
+        dataset.pointHoverRadius = 6;
+        dataset.pointBorderWidth = 1;
+      });
       this.trendsChart.update("none");
     } else {
       this.trendsChart = new Chart(canvas, {
@@ -2457,12 +2463,12 @@ class ExpenseTracker {
               data: expenseData,
               borderColor: "#e74c3c",
               backgroundColor: "#e74c3c",
-              borderWidth: 8,
-              pointRadius: 8,
-              pointHoverRadius: 10,
+              borderWidth: 3,
+              pointRadius: 3,
+              pointHoverRadius: 6,
               pointBackgroundColor: "#e74c3c",
               pointBorderColor: "#ffffff",
-              pointBorderWidth: 2,
+              pointBorderWidth: 1,
               tension: 0,
               fill: false,
             },
@@ -2471,12 +2477,12 @@ class ExpenseTracker {
               data: incomeData,
               borderColor: "#27ae60",
               backgroundColor: "#27ae60",
-              borderWidth: 8,
-              pointRadius: 8,
-              pointHoverRadius: 10,
+              borderWidth: 3,
+              pointRadius: 3,
+              pointHoverRadius: 6,
               pointBackgroundColor: "#27ae60",
               pointBorderColor: "#ffffff",
-              pointBorderWidth: 2,
+              pointBorderWidth: 1,
               tension: 0,
               fill: false,
             },
@@ -2484,7 +2490,7 @@ class ExpenseTracker {
         },
         options: {
           responsive: true,
-          maintainAspectRatio: true,
+          maintainAspectRatio: false,
           plugins: { legend: { display: true } },
           scales: {
             y: {
