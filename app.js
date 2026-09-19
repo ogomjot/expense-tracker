@@ -817,6 +817,7 @@ class ExpenseTracker {
     this.expenseChart = null;
     this.incomeChart = null;
     this.trendsChart = null;
+    this.trendsMonth = isoDateString(new Date()).slice(0, 7);
     this.budgetAlertState = {};
 
     this.initializeEventListeners();
@@ -834,6 +835,7 @@ class ExpenseTracker {
     this.initSettingsMenu();
     this.initAdvancedToggle();
     this.initChartToggleButtons();
+    this.initTrendsControls();
     this.render();
   }
 
@@ -1347,6 +1349,41 @@ class ExpenseTracker {
         });
       });
     });
+  }
+
+  initTrendsControls() {
+    const previousButton = document.getElementById("trends-previous-month");
+    const nextButton = document.getElementById("trends-next-month");
+    const currentButton = document.getElementById("trends-current-month");
+    const expandButton = document.getElementById("trends-expand-btn");
+
+    const changeMonth = (offset) => {
+      const [year, month] = this.trendsMonth.split("-").map(Number);
+      this.trendsMonth = isoDateString(new Date(year, month - 1 + offset, 1)).slice(0, 7);
+      this.renderCharts();
+      this.renderTrendsChart();
+    };
+
+    if (previousButton) previousButton.addEventListener("click", () => changeMonth(-1));
+    if (nextButton) nextButton.addEventListener("click", () => changeMonth(1));
+    if (currentButton) {
+      currentButton.addEventListener("click", () => {
+        this.trendsMonth = isoDateString(new Date()).slice(0, 7);
+        this.renderCharts();
+        this.renderTrendsChart();
+      });
+    }
+    if (expandButton) {
+      expandButton.addEventListener("click", () => {
+        const section = document.getElementById("trends-section");
+        if (!section) return;
+        const expanded = section.classList.toggle("is-expanded");
+        expandButton.setAttribute("aria-expanded", String(expanded));
+        expandButton.textContent = expanded ? "↙" : "↗";
+        expandButton.title = expanded ? "Collapse chart" : "Expand chart";
+        this.trendsChart?.resize();
+      });
+    }
   }
 
   updateEmptyStateHint() {
@@ -2031,13 +2068,30 @@ class ExpenseTracker {
     }, {});
   }
 
+  getChartCategoryTotals(type) {
+    const selectedMonth = this.trendsMonth || isoDateString(new Date()).slice(0, 7);
+    return this.getFilteredTransactions().reduce((totals, transaction) => {
+      if (transaction.type !== type || !transaction.date.startsWith(selectedMonth)) {
+        return totals;
+      }
+      const display = this.getDisplayValue(
+        transaction.amount,
+        getTransactionCurrency(transaction),
+      );
+      if (!display.converted) return totals;
+      totals[transaction.category] =
+        (totals[transaction.category] || 0) + display.amount;
+      return totals;
+    }, {});
+  }
+
   renderCharts() {
     this.renderExpenseChart();
     this.renderIncomeChart();
   }
 
   renderExpenseChart() {
-    const categoryTotals = this.getCategoryTotals("expense");
+    const categoryTotals = this.getChartCategoryTotals("expense");
     const ctx = document.getElementById("expenseChart");
     if (!ctx) return;
 
@@ -2099,7 +2153,7 @@ class ExpenseTracker {
   }
 
   renderIncomeChart() {
-    const categoryTotals = this.getCategoryTotals("income");
+    const categoryTotals = this.getChartCategoryTotals("income");
     const ctx = document.getElementById("incomeChart");
     if (!ctx) return;
 
@@ -2335,6 +2389,17 @@ class ExpenseTracker {
     const canvas = document.getElementById("trendsChart");
     if (!canvas) return;
 
+    const selectedMonth = this.trendsMonth || isoDateString(new Date()).slice(0, 7);
+    const [selectedYear, selectedMonthNumber] = selectedMonth.split("-").map(Number);
+    const monthLabel = document.getElementById("trends-month-label");
+    if (monthLabel) {
+      monthLabel.textContent = new Date(
+        selectedYear,
+        selectedMonthNumber - 1,
+        1,
+      ).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    }
+
     if (typeof Chart === "undefined") {
       canvas.style.display = "none";
       this.setChartEmptyState("trendsChart", "trendsChartIcon", true);
@@ -2342,39 +2407,37 @@ class ExpenseTracker {
       return;
     }
 
-    const monthlyData = {};
+    const daysInMonth = new Date(selectedYear, selectedMonthNumber, 0).getDate();
+    const sortedDays = Array.from({ length: daysInMonth }, (_, index) =>
+      `${selectedMonth}-${String(index + 1).padStart(2, "0")}`,
+    );
+    const dailyData = Object.fromEntries(
+      sortedDays.map((day) => [day, { income: 0, expense: 0 }]),
+    );
     this.getFilteredTransactions().forEach((transaction) => {
-      const month = transaction.date.substring(0, 7);
-      if (!monthlyData[month]) monthlyData[month] = { income: 0, expense: 0 };
+      const day = transaction.date;
+      if (!dailyData[day]) return;
       const display = this.getDisplayValue(
         transaction.amount,
         getTransactionCurrency(transaction),
       );
       if (!display.converted) return;
       if (transaction.type === "income")
-        monthlyData[month].income += display.amount;
-      else monthlyData[month].expense += display.amount;
+        dailyData[day].income += display.amount;
+      else dailyData[day].expense += display.amount;
     });
-
-    if (Object.keys(monthlyData).length === 0) {
-      canvas.style.display = "none";
-      this.setChartEmptyState("trendsChart", "trendsChartIcon", true);
-      this.updateChartIconVisibility("trendsChart", "trendsChartIcon");
-      return;
-    }
 
     this.setChartEmptyState("trendsChart", "trendsChartIcon", false);
     this.setCardCollapsed("trends-section", false);
     canvas.style.display = "block";
 
-    const sortedMonths = Object.keys(monthlyData).sort();
-    const expenseData = sortedMonths.map((m) => monthlyData[m].expense);
-    const incomeData = sortedMonths.map((m) => monthlyData[m].income);
-    const labels = sortedMonths.map((month) => {
-      const [year, monthNum] = month.split("-");
-      return new Date(year, monthNum - 1).toLocaleDateString("en-US", {
+    const expenseData = sortedDays.map((day) => dailyData[day].expense);
+    const incomeData = sortedDays.map((day) => dailyData[day].income);
+    const labels = sortedDays.map((day) => {
+      const [year, month, dayOfMonth] = day.split("-");
+      return new Date(year, month - 1, dayOfMonth).toLocaleDateString("en-US", {
         month: "short",
-        year: "numeric",
+        day: "numeric",
       });
     });
 
@@ -2393,17 +2456,29 @@ class ExpenseTracker {
               label: "Expenses",
               data: expenseData,
               borderColor: "#e74c3c",
-              backgroundColor: "rgba(231, 76, 60, 0.1)",
-              tension: 0.3,
-              fill: true,
+              backgroundColor: "#e74c3c",
+              borderWidth: 8,
+              pointRadius: 8,
+              pointHoverRadius: 10,
+              pointBackgroundColor: "#e74c3c",
+              pointBorderColor: "#ffffff",
+              pointBorderWidth: 2,
+              tension: 0,
+              fill: false,
             },
             {
               label: "Income",
               data: incomeData,
               borderColor: "#27ae60",
-              backgroundColor: "rgba(39, 174, 96, 0.1)",
-              tension: 0.3,
-              fill: true,
+              backgroundColor: "#27ae60",
+              borderWidth: 8,
+              pointRadius: 8,
+              pointHoverRadius: 10,
+              pointBackgroundColor: "#27ae60",
+              pointBorderColor: "#ffffff",
+              pointBorderWidth: 2,
+              tension: 0,
+              fill: false,
             },
           ],
         },

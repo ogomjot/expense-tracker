@@ -347,6 +347,93 @@ html.dark .summary-card-balance:hover {
   display: block;
 }
 
+.chart-month-controls {
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+
+.trend-nav-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid #c4c6cd;
+  border-radius: 8px;
+  background: #f7f9fb;
+  color: #162839;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trend-nav-btn:hover {
+  border-color: #162839;
+  background: #eef2f5;
+}
+
+.trend-current-btn {
+  min-width: 48px;
+  font-size: 0.78rem;
+}
+
+.trends-month-label {
+  min-width: 76px;
+  color: #43474c;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.trend-expand-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 4px 8px;
+  border: 1px solid #c4c6cd;
+  border-radius: 8px;
+  background: #f7f9fb;
+  color: #162839;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.trend-expand-btn:hover {
+  border-color: #162839;
+  background: #eef2f5;
+}
+
+.trends-section.is-expanded {
+  grid-column: 1 / -1;
+}
+
+.trends-section.is-expanded .chart-placeholder-wrapper {
+  min-height: 500px;
+}
+
+.trends-section.is-expanded #trendsChart {
+  height: 480px !important;
+}
+
+html.dark .trend-nav-btn {
+  border-color: #3a4453;
+  background: #1f2733;
+  color: #d1e4fb;
+}
+
+html.dark .trend-nav-btn:hover {
+  border-color: #7bf8a1;
+  background: #262f3d;
+}
+
+html.dark .trends-month-label {
+  color: #d1e4fb;
+}
+
+html.dark .trend-expand-btn {
+  border-color: #3a4453;
+  background: #1f2733;
+  color: #d1e4fb;
+}
+
 .chart-toggle-row {
   display: inline-flex;
   gap: 8px;

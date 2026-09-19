@@ -492,6 +492,12 @@
 
       <div class="tier-1-stack">
         <div class="chart-shell">
+          <div class="trends-controls chart-month-controls" aria-label="Chart month controls">
+            <button id="trends-previous-month" class="trend-nav-btn" type="button" title="Previous month" aria-label="Previous month">&larr;</button>
+            <span id="trends-month-label" class="trends-month-label"></span>
+            <button id="trends-current-month" class="trend-nav-btn trend-current-btn" type="button">Today</button>
+            <button id="trends-next-month" class="trend-nav-btn" type="button" title="Next month" aria-label="Next month">&rarr;</button>
+          </div>
           <section
             id="expense-chart-section"
             class="brick chart-panel is-active"
@@ -585,7 +591,8 @@
 
         <section id="trends-section" class="brick">
           <div class="brick-header">
-            <h2 id="trends-heading">Monthly Trends</h2>
+            <h2 id="trends-heading">Daily Trends</h2>
+            <button id="trends-expand-btn" class="trend-expand-btn" type="button" title="Expand chart" aria-label="Expand chart" aria-expanded="false">↗</button>
             <button
               class="collapse-btn group relative overflow-hidden"
               type="button"
@@ -606,7 +613,7 @@
               <canvas
                 id="trendsChart"
                 role="img"
-                aria-label="Monthly income and expense trend chart"
+                aria-label="Daily income and expense trend chart"
               ></canvas>
               <svg
                 id="trendsChartIcon"
