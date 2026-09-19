@@ -402,20 +402,38 @@ html.dark .summary-card-balance:hover {
 }
 
 .trends-section.is-expanded {
-  grid-column: 1 / -1;
+  position: fixed;
+  inset: 24px;
+  z-index: 1000;
+  overflow: auto;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
 }
 
 .trends-section.is-expanded .chart-placeholder-wrapper {
-  min-height: 500px;
+  min-height: calc(100vh - 180px);
 }
 
 .trends-section.is-expanded #trendsChart {
-  height: 480px !important;
+  height: calc(100vh - 220px) !important;
 }
 
 #trendsChart {
   width: 100% !important;
   height: 300px !important;
+}
+
+@media (max-width: 640px) {
+  .trends-section.is-expanded {
+    inset: 8px;
+  }
+
+  .trends-section.is-expanded .chart-placeholder-wrapper {
+    min-height: calc(100vh - 140px);
+  }
+
+  .trends-section.is-expanded #trendsChart {
+    height: calc(100vh - 180px) !important;
+  }
 }
 
 html.dark .trend-nav-btn {

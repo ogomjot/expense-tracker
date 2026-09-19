@@ -2446,10 +2446,10 @@ class ExpenseTracker {
       this.trendsChart.data.datasets[0].data = expenseData;
       this.trendsChart.data.datasets[1].data = incomeData;
       this.trendsChart.data.datasets.forEach((dataset) => {
-        dataset.borderWidth = 3;
-        dataset.pointRadius = 3;
-        dataset.pointHoverRadius = 6;
-        dataset.pointBorderWidth = 1;
+        dataset.borderWidth = 1;
+        dataset.pointRadius = 1;
+        dataset.pointHoverRadius = 4;
+        dataset.pointBorderWidth = 0;
       });
       this.trendsChart.update("none");
     } else {
@@ -2463,12 +2463,12 @@ class ExpenseTracker {
               data: expenseData,
               borderColor: "#e74c3c",
               backgroundColor: "#e74c3c",
-              borderWidth: 3,
-              pointRadius: 3,
-              pointHoverRadius: 6,
+              borderWidth: 1,
+              pointRadius: 1,
+              pointHoverRadius: 4,
               pointBackgroundColor: "#e74c3c",
               pointBorderColor: "#ffffff",
-              pointBorderWidth: 1,
+              pointBorderWidth: 0,
               tension: 0,
               fill: false,
             },
@@ -2477,12 +2477,12 @@ class ExpenseTracker {
               data: incomeData,
               borderColor: "#27ae60",
               backgroundColor: "#27ae60",
-              borderWidth: 3,
-              pointRadius: 3,
-              pointHoverRadius: 6,
+              borderWidth: 1,
+              pointRadius: 1,
+              pointHoverRadius: 4,
               pointBackgroundColor: "#27ae60",
               pointBorderColor: "#ffffff",
-              pointBorderWidth: 1,
+              pointBorderWidth: 0,
               tension: 0,
               fill: false,
             },
