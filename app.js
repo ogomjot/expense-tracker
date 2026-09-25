@@ -1356,6 +1356,25 @@ class ExpenseTracker {
     const nextButton = document.getElementById("trends-next-month");
     const currentButton = document.getElementById("trends-current-month");
     const expandButton = document.getElementById("trends-expand-btn");
+    const backdrop = document.getElementById("trends-modal-backdrop");
+    const section = document.getElementById("trends-section");
+
+    const setExpanded = (expanded) => {
+      if (!section) return;
+      section.classList.toggle("is-expanded", expanded);
+      document.body.classList.toggle("chart-modal-open", expanded);
+      if (backdrop) backdrop.hidden = !expanded;
+      if (expandButton) {
+        expandButton.setAttribute("aria-expanded", String(expanded));
+        expandButton.textContent = expanded ? "×" : "↗";
+        expandButton.title = expanded ? "Close enlarged chart" : "Expand chart";
+        expandButton.setAttribute(
+          "aria-label",
+          expanded ? "Close enlarged chart" : "Expand chart",
+        );
+      }
+      requestAnimationFrame(() => this.trendsChart?.resize());
+    };
 
     const changeMonth = (offset) => {
       const [year, month] = this.trendsMonth.split("-").map(Number);
@@ -1375,16 +1394,15 @@ class ExpenseTracker {
     }
     if (expandButton) {
       expandButton.addEventListener("click", () => {
-        const section = document.getElementById("trends-section");
-        if (!section) return;
-        const expanded = section.classList.toggle("is-expanded");
-        document.body.classList.toggle("chart-modal-open", expanded);
-        expandButton.setAttribute("aria-expanded", String(expanded));
-        expandButton.textContent = expanded ? "↙" : "↗";
-        expandButton.title = expanded ? "Collapse chart" : "Expand chart";
-        this.trendsChart?.resize();
+        setExpanded(!section?.classList.contains("is-expanded"));
       });
     }
+    if (backdrop) backdrop.addEventListener("click", () => setExpanded(false));
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && section?.classList.contains("is-expanded")) {
+        setExpanded(false);
+      }
+    });
   }
 
   updateEmptyStateHint() {
